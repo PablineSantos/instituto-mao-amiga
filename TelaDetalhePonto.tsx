@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Text, ScrollView } from "react-native";
 import { Ponto, pontosMock } from "./TelaListaPontos";
 
 function DetalheDoPonto({ ponto }: { ponto: Ponto }) {
@@ -35,9 +35,9 @@ function DetalheDoPonto({ ponto }: { ponto: Ponto }) {
   );
 }
 
-export default function TelaDetalhePontos({ route }: any) {
-  const { id } = route.params;
-  const pontoEncontrado = pontosMock.find((p) => p.id === id);
+export default function TelaDetalhePontos({ route, pontos = pontosMock }: any) {
+  const { id } = route?.params || {};
+  const pontoEncontrado = (pontos || pontosMock).find((p: Ponto) => p.id === id);
 
   if (!pontoEncontrado) {
     return (
@@ -47,11 +47,21 @@ export default function TelaDetalhePontos({ route }: any) {
     );
   }
 
-  return <DetalheDoPonto ponto={pontoEncontrado} />
+  return (
+    <ScrollView style={{ flex: 1, width: '100%' }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <DetalheDoPonto ponto={pontoEncontrado} />
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center', alignItems: 'center' }
+  container: { flex: 1, padding: 20, justifyContent: 'center', alignItems: 'center' },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 16,
+    justifyContent: 'center',
+    backgroundColor: '#F4F6F8',
+  }
 });
 
 const stylesCard = StyleSheet.create({
@@ -59,7 +69,9 @@ const stylesCard = StyleSheet.create({
     padding: 24,
     backgroundColor: '#ffffff',
     borderRadius: 8,
-    margin: 16,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
