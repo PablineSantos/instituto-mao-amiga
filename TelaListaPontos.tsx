@@ -1,5 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { Text, TouchableOpacity, StyleSheet, View, FlatList, TextInput, Keyboard, Alert } from "react-native";
+import {
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  View,
+  TextInput,
+  Keyboard,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 
 export type Ponto = {
   id: number;
@@ -22,11 +33,18 @@ export const pontosMock: Ponto[] = [
   { id: 8, nome: "Estação Ômega", endereco: "Setor Campinas, Goiânia - GO", horario: "Todos os dias, 24h", itens: "Recebe doações em geral", tipo: "Coleta", quantidadeAlimentos: 850 },
 ];
 
-export default function TelaListaPontos({ navigation, pontos = pontosMock }: any) {
+export default function TelaListaPontos({
+  navigation,
+  pontos: pontosProps = pontosMock,
+  onRegistrarDoacao,
+}: any) {
   const [tipoItem, setTipoItem] = useState('');
   const [quantidade, setQuantidade] = useState('');
   const [pontoDestino, setPontoDestino] = useState('');
   const [erro, setErro] = useState('');
+
+  const [pontosLocais, setPontosLocais] = useState<Ponto[]>(pontosProps);
+  const pontos = onRegistrarDoacao ? pontosProps : pontosLocais;
 
   const inputQuantidadeRef = useRef<TextInput>(null);
   const inputPontoDestinoRef = useRef<TextInput>(null);
@@ -37,6 +55,11 @@ export default function TelaListaPontos({ navigation, pontos = pontosMock }: any
       return;
     }
 
+    if (tipoItem.trim().length < 2) {
+      setErro('O tipo do item deve ter pelo menos 2 caracteres.');
+      return;
+    }
+
     if (quantidade.trim() === '') {
       setErro('A quantidade não pode ficar vazia.');
       return;
@@ -44,7 +67,7 @@ export default function TelaListaPontos({ navigation, pontos = pontosMock }: any
 
     const quantidadeNumerica = Number(quantidade.trim());
     if (isNaN(quantidadeNumerica) || !/^\d+$/.test(quantidade.trim())) {
-      setErro('A quantidade deve ser um valor numérico válido.');
+      setErro('A quantidade deve ser um número inteiro válido.');
       return;
     }
 
@@ -58,7 +81,32 @@ export default function TelaListaPontos({ navigation, pontos = pontosMock }: any
       return;
     }
 
-    Alert.alert('Sucesso', `Doação de ${quantidadeNumerica} ${tipoItem}(s) para "${pontoDestino}" registrada com sucesso!`);
+    const busca = pontoDestino.trim().toLowerCase();
+    const pontoEncontrado = pontos.find(
+      (p: Ponto) =>
+        p.nome.toLowerCase() === busca ||
+        p.nome.toLowerCase().includes(busca) ||
+        String(p.id) === busca
+    );
+
+    if (pontoEncontrado) {
+      if (onRegistrarDoacao) {
+        onRegistrarDoacao(pontoEncontrado.id, quantidadeNumerica);
+      } else {
+        setPontosLocais((atuais) =>
+          atuais.map((p) =>
+            p.id === pontoEncontrado.id
+              ? { ...p, quantidadeAlimentos: p.quantidadeAlimentos + quantidadeNumerica }
+              : p
+          )
+        );
+      }
+    }
+
+    Alert.alert(
+      'Sucesso',
+      `Doação de ${quantidadeNumerica} ${tipoItem}(s) para "${pontoDestino.trim()}" registrada com sucesso!`
+    );
 
     setTipoItem('');
     setQuantidade('');
@@ -68,78 +116,104 @@ export default function TelaListaPontos({ navigation, pontos = pontosMock }: any
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={pontos}
-        keyExtractor={(item: Ponto) => String(item.id)}
-        ListHeaderComponent={
-          <View>
-            <View style={styles.formContainer}>
-              <Text style={styles.formTitle}>Registrar Doação</Text>
-              
-              <TextInput
-                style={styles.input}
-                placeholder="Tipo do item (ex: Cesta Básica)"
-                placeholderTextColor="#888"
-                value={tipoItem}
-                onChangeText={setTipoItem}
-                returnKeyType="next"
-                onSubmitEditing={() => inputQuantidadeRef.current?.focus()}
-              />
+    <ScrollView
+      style={[
+        styles.scrollView,
+        Platform.OS === 'web' && ({ height: '100%', maxHeight: '100%', overflowY: 'scroll' } as any),
+      ]}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={true}
+      persistentScrollbar={true}
+    >
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.formContainer}>
+          <Text style={styles.formTitle}>Registrar Doação</Text>
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Tipo do item (ex: Cesta Básica)"
+            placeholderTextColor="#888"
+            value={tipoItem}
+            onChangeText={setTipoItem}
+            returnKeyType="next"
+            onSubmitEditing={() => inputQuantidadeRef.current?.focus()}
+          />
 
-              <View style={styles.row}>
-                <TextInput
-                  ref={inputQuantidadeRef}
-                  style={[styles.input, { flex: 1, marginRight: 8 }]}
-                  placeholder="Quantidade"
-                  placeholderTextColor="#888"
-                  value={quantidade}
-                  onChangeText={setQuantidade}
-                  keyboardType="numeric"
-                  returnKeyType="next"
-                  onSubmitEditing={() => inputPontoDestinoRef.current?.focus()}
-                />
-                <TextInput
-                  ref={inputPontoDestinoRef}
-                  style={[styles.input, { flex: 2, marginLeft: 8 }]}
-                  placeholder="Ponto de destino"
-                  placeholderTextColor="#888"
-                  value={pontoDestino}
-                  onChangeText={setPontoDestino}
-                  returnKeyType="done"
-                  onSubmitEditing={validarESalvar}
-                />
-              </View>
-
-              {erro !== '' && <Text style={styles.erro}>{erro}</Text>}
-
-              <TouchableOpacity style={styles.botaoSalvar} onPress={validarESalvar}>
-                <Text style={styles.textoBotao}>Registrar Doação</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.divider} />
-
-            <Text style={styles.listaTitle}>Pontos de Coleta Disponíveis</Text>
+          <View style={styles.row}>
+            <TextInput
+              ref={inputQuantidadeRef}
+              style={[styles.input, styles.inputQuantidade]}
+              placeholder="Quantidade"
+              placeholderTextColor="#888"
+              value={quantidade}
+              onChangeText={(texto) => setQuantidade(texto.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              inputMode="numeric"
+              returnKeyType="next"
+              onSubmitEditing={() => inputPontoDestinoRef.current?.focus()}
+            />
+            <TextInput
+              ref={inputPontoDestinoRef}
+              style={[styles.input, styles.inputDestino]}
+              placeholder="Ponto de destino"
+              placeholderTextColor="#888"
+              value={pontoDestino}
+              onChangeText={setPontoDestino}
+              returnKeyType="done"
+              onSubmitEditing={validarESalvar}
+            />
           </View>
-        }
-        renderItem={({ item }: { item: Ponto }) => (
-          <TouchableOpacity 
-            style={styles.item}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('Detalhe', { id: item.id })}
+
+          {erro !== '' && <Text style={styles.erro}>{erro}</Text>}
+
+          <TouchableOpacity
+            style={styles.botaoSalvar}
+            onPress={validarESalvar}
+            activeOpacity={0.8}
           >
-            <Text style={styles.titulo}>{item.nome}</Text>
-            <Text style={styles.subtitulo}>{item.tipo}</Text>
+            <Text style={styles.textoBotao}>Registrar Doação</Text>
           </TouchableOpacity>
-        )}
-      />
-    </View>
+        </View>
+      </KeyboardAvoidingView>
+
+      <View style={styles.divider} />
+
+      <Text style={styles.listaTitle}>Pontos de Coleta Disponíveis</Text>
+
+      {pontos.map((item: Ponto) => (
+        <TouchableOpacity 
+          key={item.id}
+          style={styles.item}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Detalhe', { id: item.id })}
+        >
+          <Text style={styles.titulo}>{item.nome}</Text>
+          <Text style={styles.subtitulo}>
+            {item.tipo} • {item.quantidadeAlimentos} alimentos registrados
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#F4F6F8' },
+  scrollView: {
+    flex: 1,
+    height: '100%',
+    backgroundColor: '#F4F6F8',
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 48,
+  },
+  keyboardView: {
+    width: '100%',
+  },
   formContainer: {
     backgroundColor: '#FFFFFF',
     padding: 16,
@@ -150,27 +224,49 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
     marginBottom: 8,
+    width: '100%',
   },
   formTitle: { fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginBottom: 12 },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    width: '100%',
+  },
   input: {
-    height: 50,
+    minHeight: 48,
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
     paddingHorizontal: 16,
+    paddingVertical: 10,
     marginBottom: 12,
     fontSize: 16,
     color: '#333',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    width: '100%',
+    flexShrink: 1,
+  },
+  inputQuantidade: {
+    flex: 1,
+    minWidth: 100,
+    width: undefined,
+  },
+  inputDestino: {
+    flex: 2,
+    minWidth: 130,
+    width: undefined,
   },
   erro: { color: '#C62828', marginBottom: 12, fontSize: 14, fontWeight: '500' },
   botaoSalvar: {
     backgroundColor: '#2563EB',
-    height: 50,
+    minHeight: 48,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    width: '100%',
   },
   textoBotao: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
   divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 16 },
@@ -187,7 +283,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1, 
+    minHeight: 48,
+    justifyContent: 'center',
   },
   titulo: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
-  subtitulo: { fontSize: 14, color: '#6B7280', marginTop: 4 }
+  subtitulo: { fontSize: 14, color: '#6B7280', marginTop: 4 },
 });
