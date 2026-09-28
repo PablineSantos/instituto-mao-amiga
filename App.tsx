@@ -1,13 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TelaListaPontos, { pontosMock, Ponto } from './TelaListaPontos';
 import TelaDetalhePontos from './TelaDetalhePonto';
+import { listarDoacoes } from './doacoesStorage';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [pontos, setPontos] = useState<Ponto[]>(pontosMock);
+
+  useEffect(() => {
+    async function carregarDoacoesSalvas() {
+      try {
+        const doacoes = await listarDoacoes();
+        if (doacoes && doacoes.length > 0) {
+          setPontos((pontosAtuais) =>
+            pontosAtuais.map((p) => {
+              const totalDoado = doacoes
+                .filter((d) => d.pontoId === p.id)
+                .reduce((acc, d) => acc + (Number(d.quantidade) || 0), 0);
+              return totalDoado > 0
+                ? { ...p, quantidadeAlimentos: p.quantidadeAlimentos + totalDoado }
+                : p;
+            })
+          );
+        }
+      } catch (error) {
+        console.error('Erro ao carregar histórico de doações:', error);
+      }
+    }
+
+    carregarDoacoesSalvas();
+  }, []);
 
   function registrarDoacao(pontoId: number, quantidade: number) {
     setPontos((pontosAtuais) =>
