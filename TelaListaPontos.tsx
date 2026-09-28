@@ -208,6 +208,14 @@ export default function TelaListaPontos({
           >
             <Text style={styles.textoBotao}>Registrar Doação</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.botaoHistorico}
+            onPress={() => navigation.navigate('MinhasDoacoes')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.textoBotaoHistorico}>Ver Minhas Doações</Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
 
@@ -300,6 +308,20 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   textoBotao: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  botaoHistorico: {
+    backgroundColor: '#EEF2FF',
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    width: '100%',
+  },
+  textoBotaoHistorico: { color: '#3730A3', fontSize: 16, fontWeight: 'bold' },
   divider: { height: 1, backgroundColor: '#E5E7EB', marginVertical: 16 },
   listaTitle: { fontSize: 16, fontWeight: 'bold', color: '#6B7280', marginBottom: 12 },
   item: { 
