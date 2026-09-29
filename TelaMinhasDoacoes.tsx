@@ -1,15 +1,15 @@
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { Doacao, listarDoacoes } from "./doacoesStorage";
 
