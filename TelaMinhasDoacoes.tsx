@@ -80,6 +80,44 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
     );
   }, [doacoes, filtro]);
 
+  const resumoPorTipo = useMemo(() => {
+    if (!doacoes || doacoes.length === 0) {
+      return { totalGeralDoacoes: 0, itens: [] };
+    }
+
+    const mapa = new Map<
+      string,
+      { tipoOriginal: string; totalQuantidade: number; totalDoacoes: number }
+    >();
+
+    for (const d of doacoes) {
+      const tipo = d.tipoItem?.trim() || "Outro";
+      const chave = tipo.toLowerCase();
+      const qtd = Number(d.quantidade) || 0;
+
+      const atual = mapa.get(chave);
+      if (atual) {
+        atual.totalQuantidade += qtd;
+        atual.totalDoacoes += 1;
+      } else {
+        mapa.set(chave, {
+          tipoOriginal: tipo,
+          totalQuantidade: qtd,
+          totalDoacoes: 1,
+        });
+      }
+    }
+
+    const itens = Array.from(mapa.values()).sort(
+      (a, b) => b.totalQuantidade - a.totalQuantidade,
+    );
+
+    return {
+      totalGeralDoacoes: doacoes.length,
+      itens,
+    };
+  }, [doacoes]);
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -115,6 +153,38 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
         <FlatList
           data={doacoesFiltradas}
           keyExtractor={(item) => String(item.id)}
+          ListHeaderComponent={
+            <View style={styles.resumoCard}>
+              <View style={styles.resumoHeader}>
+                <Text style={styles.resumoTitulo}>Resumo por Tipo</Text>
+                <Text style={styles.resumoSubtitulo}>
+                  {resumoPorTipo.totalGeralDoacoes === 1
+                    ? "1 doação"
+                    : `${resumoPorTipo.totalGeralDoacoes} doações`}
+                </Text>
+              </View>
+              {resumoPorTipo.itens.length === 0 ? (
+                <Text style={styles.resumoVazio}>
+                  Nenhuma doação para contabilizar.
+                </Text>
+              ) : (
+                <View style={styles.resumoLista}>
+                  {resumoPorTipo.itens.map((item) => (
+                    <View key={item.tipoOriginal} style={styles.resumoItem}>
+                      <Text style={styles.resumoTipo}>{item.tipoOriginal}:</Text>
+                      <Text style={styles.resumoValor}>
+                        {`${item.totalQuantidade} ${
+                          item.totalQuantidade === 1 ? "unidade" : "unidades"
+                        } em ${item.totalDoacoes} ${
+                          item.totalDoacoes === 1 ? "doação" : "doações"
+                        }`}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          }
           renderItem={({ item }) => (
             <ItemDoacao
               doacao={item}
@@ -226,6 +296,65 @@ const styles = StyleSheet.create({
   listContentEmpty: {
     flexGrow: 1,
     justifyContent: "center",
+  },
+  resumoCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  resumoHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    paddingBottom: 8,
+    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+  },
+  resumoTitulo: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1F2937",
+  },
+  resumoSubtitulo: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  resumoVazio: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 8,
+  },
+  resumoLista: {
+    marginTop: 4,
+  },
+  resumoItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  resumoTipo: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    flex: 1,
+    marginRight: 8,
+  },
+  resumoValor: {
+    fontSize: 14,
+    color: "#4B5563",
   },
   card: {
     backgroundColor: "#FFFFFF",
