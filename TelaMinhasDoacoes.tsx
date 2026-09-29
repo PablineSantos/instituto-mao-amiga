@@ -171,7 +171,9 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
                 <View style={styles.resumoLista}>
                   {resumoPorTipo.itens.map((item) => (
                     <View key={item.tipoOriginal} style={styles.resumoItem}>
-                      <Text style={styles.resumoTipo}>{item.tipoOriginal}:</Text>
+                      <Text style={styles.resumoTipo}>
+                        {item.tipoOriginal}:
+                      </Text>
                       <Text style={styles.resumoValor}>
                         {`${item.totalQuantidade} ${
                           item.totalQuantidade === 1 ? "unidade" : "unidades"
@@ -263,6 +265,8 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 8,
+    minWidth: 44,
+    minHeight: 44,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -278,6 +282,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   clearFilterButtonText: {
     color: "#3730A3",
@@ -412,6 +420,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyButtonText: {
     color: "#FFFFFF",

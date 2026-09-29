@@ -70,10 +70,14 @@ export default function App() {
                   <TouchableOpacity
                     onPress={() => navigation.navigate("MinhasDoacoes")}
                     style={{
+                      minWidth: 44,
+                      minHeight: 44,
+                      justifyContent: "center",
+                      alignItems: "center",
                       paddingHorizontal: 12,
-                      paddingVertical: 6,
+                      paddingVertical: 8,
                       backgroundColor: "#2563EB",
-                      borderRadius: 6,
+                      borderRadius: 8,
                     }}
                     activeOpacity={0.8}
                   >
