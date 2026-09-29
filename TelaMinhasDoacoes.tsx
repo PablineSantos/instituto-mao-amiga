@@ -1,40 +1,50 @@
-import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { listarDoacoes, Doacao } from './doacoesStorage';
+    ActivityIndicator,
+    FlatList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { Doacao, listarDoacoes } from "./doacoesStorage";
 
 export interface ItemDoacaoProps {
   doacao: Doacao;
+  onPress?: () => void;
 }
 
-export const ItemDoacao = React.memo(function ItemDoacao({ doacao }: ItemDoacaoProps) {
+export const ItemDoacao = React.memo(function ItemDoacao({
+  doacao,
+  onPress,
+}: ItemDoacaoProps) {
   const dataFormatada = doacao.criadoEm
-    ? new Date(doacao.criadoEm).toLocaleString('pt-BR')
-    : 'Data não informada';
+    ? new Date(doacao.criadoEm).toLocaleString("pt-BR")
+    : "Data não informada";
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.cardTitulo}>{doacao.tipoItem || 'Doação'}</Text>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Text style={styles.cardTitulo}>{doacao.tipoItem || "Doação"}</Text>
       <View style={styles.infoRow}>
         <Text style={styles.cardLabel}>Quantidade: </Text>
-        <Text style={styles.cardValor}>{doacao.quantidade ?? '-'}</Text>
+        <Text style={styles.cardValor}>{doacao.quantidade ?? "-"}</Text>
       </View>
       <View style={styles.infoRow}>
         <Text style={styles.cardLabel}>Destino: </Text>
-        <Text style={styles.cardValor}>{doacao.pontoDestino || 'Não especificado'}</Text>
+        <Text style={styles.cardValor}>
+          {doacao.pontoDestino || "Não especificado"}
+        </Text>
       </View>
       <View style={styles.infoRow}>
         <Text style={styles.cardLabel}>Data: </Text>
         <Text style={styles.cardValor}>{dataFormatada}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 });
 
@@ -48,7 +58,7 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
       const lista = await listarDoacoes();
       setDoacoes(lista);
     } catch (error) {
-      console.error('Erro ao carregar histórico de doações:', error);
+      console.error("Erro ao carregar histórico de doações:", error);
     } finally {
       setCarregando(false);
     }
@@ -57,7 +67,7 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
   useFocusEffect(
     useCallback(() => {
       carregarHistorico();
-    }, [carregarHistorico])
+    }, [carregarHistorico]),
   );
 
   return (
@@ -70,7 +80,14 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
         <FlatList
           data={doacoes}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <ItemDoacao doacao={item} />}
+          renderItem={({ item }) => (
+            <ItemDoacao
+              doacao={item}
+              onPress={() =>
+                navigation.navigate("DetalheDoacao", { doacao: item })
+              }
+            />
+          )}
           contentContainerStyle={[
             styles.listContent,
             doacoes.length === 0 && styles.listContentEmpty,
@@ -83,7 +100,7 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
               </Text>
               <TouchableOpacity
                 style={styles.emptyButton}
-                onPress={() => navigation.navigate('Lista')}
+                onPress={() => navigation.navigate("Lista")}
                 activeOpacity={0.8}
               >
                 <Text style={styles.emptyButtonText}>Registrar Doação</Text>
@@ -99,12 +116,12 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: "#F4F6F8",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   listContent: {
     padding: 16,
@@ -112,16 +129,16 @@ const styles = StyleSheet.create({
   },
   listContentEmpty: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -129,51 +146,51 @@ const styles = StyleSheet.create({
   },
   cardTitulo: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
     marginBottom: 8,
   },
   infoRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 4,
   },
   cardLabel: {
     fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
+    color: "#6B7280",
+    fontWeight: "600",
   },
   cardValor: {
     fontSize: 14,
-    color: '#1F2937',
+    color: "#1F2937",
     flexShrink: 1,
   },
   emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     padding: 24,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+    color: "#6B7280",
+    textAlign: "center",
     marginBottom: 20,
   },
   emptyButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
   },
   emptyButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: "#FFFFFF",
+    fontWeight: "bold",
     fontSize: 15,
   },
 });
