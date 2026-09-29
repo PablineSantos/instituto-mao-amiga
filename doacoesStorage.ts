@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const STORAGE_KEY = '@instituto_mao_amiga:doacoes';
+export const STORAGE_KEY = "@instituto_mao_amiga:doacoes";
 
 export interface Doacao {
   id: string;
@@ -38,7 +38,7 @@ export async function listarDoacoes(): Promise<Doacao[]> {
     const parsed = JSON.parse(json);
     return Array.isArray(parsed) ? parsed : [parsed];
   } catch (error) {
-    console.error('Erro ao listar doações do AsyncStorage:', error);
+    console.error("Erro ao listar doações do AsyncStorage:", error);
     return [];
   }
 }
@@ -63,7 +63,7 @@ export async function salvarDoacao(doacao: NovaDoacao = {}): Promise<Doacao> {
 
     return novaDoacao;
   } catch (error) {
-    console.error('Erro ao salvar doação no AsyncStorage:', error);
+    console.error("Erro ao salvar doação no AsyncStorage:", error);
     throw error;
   }
 }
@@ -75,7 +75,7 @@ export async function limparDoacoes(): Promise<void> {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    console.error('Erro ao limpar doações do AsyncStorage:', error);
+    console.error("Erro ao limpar doações do AsyncStorage:", error);
     throw error;
   }
 }
@@ -86,10 +86,47 @@ export async function limparDoacoes(): Promise<void> {
 export async function excluirDoacao(id: string): Promise<void> {
   try {
     const doacoesExistentes = await listarDoacoes();
-    const listaAtualizada = doacoesExistentes.filter((d) => String(d.id) !== String(id));
+    const listaAtualizada = doacoesExistentes.filter(
+      (d) => String(d.id) !== String(id),
+    );
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(listaAtualizada));
   } catch (error) {
-    console.error('Erro ao excluir doação no AsyncStorage:', error);
+    console.error("Erro ao excluir doação no AsyncStorage:", error);
+    throw error;
+  }
+}
+
+/**
+ * Updates an existing donation in AsyncStorage by its id.
+ */
+export async function atualizarDoacao(doacaoAtualizada: Doacao): Promise<Doacao> {
+  try {
+    const doacoesExistentes = await listarDoacoes();
+    const index = doacoesExistentes.findIndex(
+      (d) => String(d.id) === String(doacaoAtualizada.id),
+    );
+
+    if (index === -1) {
+      throw new Error(`Doação com id ${doacaoAtualizada.id} não encontrada.`);
+    }
+
+    const doacaoSalva: Doacao = {
+      ...doacoesExistentes[index],
+      ...doacaoAtualizada,
+      id: String(doacoesExistentes[index].id),
+      criadoEm:
+        doacoesExistentes[index].criadoEm ||
+        doacaoAtualizada.criadoEm ||
+        new Date().toISOString(),
+    };
+
+    const listaAtualizada = [...doacoesExistentes];
+    listaAtualizada[index] = doacaoSalva;
+
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(listaAtualizada));
+    return doacaoSalva;
+  } catch (error) {
+    console.error("Erro ao atualizar doação no AsyncStorage:", error);
     throw error;
   }
 }
@@ -100,4 +137,5 @@ export default {
   salvarDoacao,
   limparDoacoes,
   excluirDoacao,
+  atualizarDoacao,
 };

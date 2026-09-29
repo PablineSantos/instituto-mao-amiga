@@ -2,10 +2,10 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect, useState } from "react";
 import { Text, TouchableOpacity } from "react-native";
+import TelaDetalheDoacao from "./TelaDetalheDoacao";
 import TelaDetalhePontos from "./TelaDetalhePonto";
 import TelaListaPontos, { Ponto, pontosMock } from "./TelaListaPontos";
 import TelaMinhasDoacoes from "./TelaMinhasDoacoes";
-import TelaDetalheDoacao from "./TelaDetalheDoacao";
 import { listarDoacoes } from "./doacoesStorage";
 
 const Stack = createNativeStackNavigator();
@@ -60,26 +60,34 @@ export default function App() {
       >
         <Stack.Screen
           name="Lista"
-          options={({ navigation }: any) => ({
-            title: "Pontos de Coleta",
-            headerRight: () => (
-              <TouchableOpacity
-                onPress={() => navigation.navigate("MinhasDoacoes")}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  backgroundColor: "#2563EB",
-                  borderRadius: 6,
-                }}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={{ color: "#FFFFFF", fontWeight: "bold", fontSize: 13 }}
-                >
-                  Minhas Doações
-                </Text>
-              </TouchableOpacity>
-            ),
+          options={({ route, navigation }: any) => ({
+            title: route?.params?.doacaoEdicao
+              ? "Editar Doação"
+              : "Pontos de Coleta",
+            headerRight: route?.params?.doacaoEdicao
+              ? undefined
+              : () => (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate("MinhasDoacoes")}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      backgroundColor: "#2563EB",
+                      borderRadius: 6,
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={{
+                        color: "#FFFFFF",
+                        fontWeight: "bold",
+                        fontSize: 13,
+                      }}
+                    >
+                      Minhas Doações
+                    </Text>
+                  </TouchableOpacity>
+                ),
           })}
         >
           {(props: any) => (

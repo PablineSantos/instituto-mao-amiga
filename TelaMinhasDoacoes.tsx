@@ -24,11 +24,7 @@ export const ItemDoacao = React.memo(function ItemDoacao({
     : "Data não informada";
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <Text style={styles.cardTitulo}>{doacao.tipoItem || "Doação"}</Text>
       <View style={styles.infoRow}>
         <Text style={styles.cardLabel}>Quantidade: </Text>
