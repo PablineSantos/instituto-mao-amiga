@@ -1,12 +1,15 @@
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Doacao, listarDoacoes } from "./doacoesStorage";
 
@@ -47,6 +50,7 @@ export const ItemDoacao = React.memo(function ItemDoacao({
 export default function TelaMinhasDoacoes({ navigation }: any) {
   const [doacoes, setDoacoes] = useState<Doacao[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [filtro, setFiltro] = useState("");
 
   const carregarHistorico = useCallback(async () => {
     try {
@@ -66,15 +70,50 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
     }, [carregarHistorico]),
   );
 
+  const doacoesFiltradas = useMemo(() => {
+    if (!filtro.trim()) {
+      return doacoes;
+    }
+    const termo = filtro.trim().toLowerCase();
+    return doacoes.filter((d) =>
+      (d.tipoItem || "").toLowerCase().includes(termo),
+    );
+  }, [doacoes, filtro]);
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.searchWrapper}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por tipo de item..."
+          placeholderTextColor="#9CA3AF"
+          value={filtro}
+          onChangeText={setFiltro}
+          clearButtonMode="while-editing"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {filtro.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={() => setFiltro("")}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.clearButtonText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {carregando ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : (
         <FlatList
-          data={doacoes}
+          data={doacoesFiltradas}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
             <ItemDoacao
@@ -86,26 +125,45 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
           )}
           contentContainerStyle={[
             styles.listContent,
-            doacoes.length === 0 && styles.listContentEmpty,
+            doacoesFiltradas.length === 0 && styles.listContentEmpty,
           ]}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>Nenhuma doação registrada</Text>
-              <Text style={styles.emptySubtitle}>
-                Você ainda não possui histórico de doações salvas no aparelho.
-              </Text>
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={() => navigation.navigate("Lista")}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.emptyButtonText}>Registrar Doação</Text>
-              </TouchableOpacity>
-            </View>
+            filtro.trim() !== "" ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyTitle}>
+                  Nenhum resultado encontrado
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  Nenhuma doação encontrada para &quot;{filtro.trim()}&quot;.
+                </Text>
+                <TouchableOpacity
+                  style={styles.clearFilterButton}
+                  onPress={() => setFiltro("")}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.clearFilterButtonText}>Limpar busca</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyTitle}>Nenhuma doação registrada</Text>
+                <Text style={styles.emptySubtitle}>
+                  Você ainda não possui histórico de doações salvas no aparelho.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={() => navigation.navigate("Lista")}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.emptyButtonText}>Registrar Doação</Text>
+                </TouchableOpacity>
+              </View>
+            )
           }
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -113,6 +171,48 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F4F6F8",
+  },
+  searchWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 48,
+    fontSize: 15,
+    color: "#1F2937",
+    paddingVertical: 8,
+  },
+  clearButton: {
+    padding: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  clearButtonText: {
+    fontSize: 16,
+    color: "#9CA3AF",
+    fontWeight: "bold",
+  },
+  clearFilterButton: {
+    backgroundColor: "#EEF2FF",
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  clearFilterButtonText: {
+    color: "#3730A3",
+    fontWeight: "600",
+    fontSize: 14,
   },
   loadingContainer: {
     flex: 1,
