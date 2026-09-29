@@ -99,7 +99,9 @@ export async function excluirDoacao(id: string): Promise<void> {
 /**
  * Updates an existing donation in AsyncStorage by its id.
  */
-export async function atualizarDoacao(doacaoAtualizada: Doacao): Promise<Doacao> {
+export async function atualizarDoacao(
+  doacaoAtualizada: Doacao,
+): Promise<Doacao> {
   try {
     const doacoesExistentes = await listarDoacoes();
     const index = doacoesExistentes.findIndex(

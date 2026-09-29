@@ -1,12 +1,12 @@
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { Doacao, excluirDoacao, listarDoacoes } from "./doacoesStorage";
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     Alert,
     Keyboard,
@@ -12,10 +12,10 @@ import {
     View,
 } from "react-native";
 import {
-  atualizarDoacao,
-  Doacao,
-  listarDoacoes,
-  salvarDoacao,
+    atualizarDoacao,
+    Doacao,
+    listarDoacoes,
+    salvarDoacao,
 } from "./doacoesStorage";
 
 export type Ponto = {
