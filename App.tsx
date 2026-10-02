@@ -6,7 +6,6 @@ import TelaListaPontos, { pontosMock, Ponto } from './TelaListaPontos';
 import TelaDetalhePontos from './TelaDetalhePonto';
 import TelaMinhasDoacoes from './TelaMinhasDoacoes';
 import { listarDoacoes } from './doacoesStorage';
-
 const Stack = createNativeStackNavigator();
 
 export default function App() {
