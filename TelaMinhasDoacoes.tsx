@@ -1,10 +1,13 @@
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
+    KeyboardAvoidingView,
+    Platform,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
@@ -44,9 +47,10 @@ export const ItemDoacao = React.memo(function ItemDoacao({
   );
 });
 
-export default function TelaMinhasDoacoes({ navigation }: any) {
+export default function TelaMinhasDoacoes({ route, navigation }: any) {
   const [doacoes, setDoacoes] = useState<Doacao[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [filtro, setFiltro] = useState("");
 
   const carregarHistorico = useCallback(async () => {
     try {
@@ -66,16 +70,129 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
     }, [carregarHistorico]),
   );
 
+  useEffect(() => {
+    if (route?.params?.timestamp) {
+      carregarHistorico();
+    }
+  }, [route?.params?.timestamp, carregarHistorico]);
+
+  const doacoesFiltradas = useMemo(() => {
+    if (!filtro.trim()) {
+      return doacoes;
+    }
+    const termo = filtro.trim().toLowerCase();
+    return doacoes.filter((d) =>
+      (d.tipoItem || "").toLowerCase().includes(termo),
+    );
+  }, [doacoes, filtro]);
+
+  const resumoPorTipo = useMemo(() => {
+    if (!doacoes || doacoes.length === 0) {
+      return { totalGeralDoacoes: 0, itens: [] };
+    }
+
+    const mapa = new Map<
+      string,
+      { tipoOriginal: string; totalQuantidade: number; totalDoacoes: number }
+    >();
+
+    for (const d of doacoes) {
+      const tipo = d.tipoItem?.trim() || "Outro";
+      const chave = tipo.toLowerCase();
+      const qtd = Number(d.quantidade) || 0;
+
+      const atual = mapa.get(chave);
+      if (atual) {
+        atual.totalQuantidade += qtd;
+        atual.totalDoacoes += 1;
+      } else {
+        mapa.set(chave, {
+          tipoOriginal: tipo,
+          totalQuantidade: qtd,
+          totalDoacoes: 1,
+        });
+      }
+    }
+
+    const itens = Array.from(mapa.values()).sort(
+      (a, b) => b.totalQuantidade - a.totalQuantidade,
+    );
+
+    return {
+      totalGeralDoacoes: doacoes.length,
+      itens,
+    };
+  }, [doacoes]);
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.searchWrapper}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por tipo de item..."
+          placeholderTextColor="#9CA3AF"
+          value={filtro}
+          onChangeText={setFiltro}
+          clearButtonMode="while-editing"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {filtro.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={() => setFiltro("")}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.clearButtonText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {carregando ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
       ) : (
         <FlatList
-          data={doacoes}
+          data={doacoesFiltradas}
           keyExtractor={(item) => String(item.id)}
+          ListHeaderComponent={
+            <View style={styles.resumoCard}>
+              <View style={styles.resumoHeader}>
+                <Text style={styles.resumoTitulo}>Resumo por Tipo</Text>
+                <Text style={styles.resumoSubtitulo}>
+                  {resumoPorTipo.totalGeralDoacoes === 1
+                    ? "1 doação"
+                    : `${resumoPorTipo.totalGeralDoacoes} doações`}
+                </Text>
+              </View>
+              {resumoPorTipo.itens.length === 0 ? (
+                <Text style={styles.resumoVazio}>
+                  Nenhuma doação para contabilizar.
+                </Text>
+              ) : (
+                <View style={styles.resumoLista}>
+                  {resumoPorTipo.itens.map((item) => (
+                    <View key={item.tipoOriginal} style={styles.resumoItem}>
+                      <Text style={styles.resumoTipo}>
+                        {item.tipoOriginal}:
+                      </Text>
+                      <Text style={styles.resumoValor}>
+                        {`${item.totalQuantidade} ${
+                          item.totalQuantidade === 1 ? "unidade" : "unidades"
+                        } em ${item.totalDoacoes} ${
+                          item.totalDoacoes === 1 ? "doação" : "doações"
+                        }`}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          }
           renderItem={({ item }) => (
             <ItemDoacao
               doacao={item}
@@ -86,26 +203,45 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
           )}
           contentContainerStyle={[
             styles.listContent,
-            doacoes.length === 0 && styles.listContentEmpty,
+            doacoesFiltradas.length === 0 && styles.listContentEmpty,
           ]}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>Nenhuma doação registrada</Text>
-              <Text style={styles.emptySubtitle}>
-                Você ainda não possui histórico de doações salvas no aparelho.
-              </Text>
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={() => navigation.navigate("Lista")}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.emptyButtonText}>Registrar Doação</Text>
-              </TouchableOpacity>
-            </View>
+            filtro.trim() !== "" ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyTitle}>
+                  Nenhum resultado encontrado
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  Nenhuma doação encontrada para &quot;{filtro.trim()}&quot;.
+                </Text>
+                <TouchableOpacity
+                  style={styles.clearFilterButton}
+                  onPress={() => setFiltro("")}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.clearFilterButtonText}>Limpar busca</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyTitle}>Nenhuma doação registrada</Text>
+                <Text style={styles.emptySubtitle}>
+                  Você ainda não possui histórico de doações salvas no aparelho.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={() => navigation.navigate("Lista")}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.emptyButtonText}>Registrar Doação</Text>
+                </TouchableOpacity>
+              </View>
+            )
           }
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -113,6 +249,54 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F4F6F8",
+  },
+  searchWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 48,
+    fontSize: 15,
+    color: "#1F2937",
+    paddingVertical: 8,
+  },
+  clearButton: {
+    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  clearButtonText: {
+    fontSize: 16,
+    color: "#9CA3AF",
+    fontWeight: "bold",
+  },
+  clearFilterButton: {
+    backgroundColor: "#EEF2FF",
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  clearFilterButtonText: {
+    color: "#3730A3",
+    fontWeight: "600",
+    fontSize: 14,
   },
   loadingContainer: {
     flex: 1,
@@ -126,6 +310,65 @@ const styles = StyleSheet.create({
   listContentEmpty: {
     flexGrow: 1,
     justifyContent: "center",
+  },
+  resumoCard: {
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  resumoHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    paddingBottom: 8,
+    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+  },
+  resumoTitulo: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1F2937",
+  },
+  resumoSubtitulo: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  resumoVazio: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 8,
+  },
+  resumoLista: {
+    marginTop: 4,
+  },
+  resumoItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  resumoTipo: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    flex: 1,
+    marginRight: 8,
+  },
+  resumoValor: {
+    fontSize: 14,
+    color: "#4B5563",
   },
   card: {
     backgroundColor: "#FFFFFF",
@@ -183,6 +426,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyButtonText: {
     color: "#FFFFFF",
