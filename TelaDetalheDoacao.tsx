@@ -2,6 +2,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import {
     Alert,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -54,7 +55,30 @@ export default function TelaDetalheDoacao({ route, navigation }: any) {
       })
     : "Data não informada";
 
+  async function executarExclusao() {
+    try {
+      await excluirDoacao(String(doacao.id));
+      navigation.navigate("MinhasDoacoes", { timestamp: Date.now() });
+    } catch (error) {
+      if (Platform.OS === "web") {
+        window.alert("Não foi possível excluir a doação.");
+      } else {
+        Alert.alert("Erro", "Não foi possível excluir a doação.");
+      }
+    }
+  }
+
   function confirmarExclusao() {
+    if (Platform.OS === "web") {
+      const confirmou = window.confirm(
+        "Deseja realmente excluir esta doação do histórico?",
+      );
+      if (confirmou) {
+        executarExclusao();
+      }
+      return;
+    }
+
     Alert.alert(
       "Confirmar exclusão",
       "Deseja realmente excluir esta doação do histórico?",
@@ -66,16 +90,10 @@ export default function TelaDetalheDoacao({ route, navigation }: any) {
         {
           text: "Excluir",
           style: "destructive",
-          onPress: async () => {
-            try {
-              await excluirDoacao(String(doacao.id));
-              navigation.goBack();
-            } catch (error) {
-              Alert.alert("Erro", "Não foi possível excluir a doação.");
-            }
-          },
+          onPress: executarExclusao,
         },
       ],
+      { cancelable: true },
     );
   }
 

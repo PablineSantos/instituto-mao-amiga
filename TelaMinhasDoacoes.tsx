@@ -1,5 +1,5 @@
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
@@ -47,7 +47,7 @@ export const ItemDoacao = React.memo(function ItemDoacao({
   );
 });
 
-export default function TelaMinhasDoacoes({ navigation }: any) {
+export default function TelaMinhasDoacoes({ route, navigation }: any) {
   const [doacoes, setDoacoes] = useState<Doacao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [filtro, setFiltro] = useState("");
@@ -69,6 +69,12 @@ export default function TelaMinhasDoacoes({ navigation }: any) {
       carregarHistorico();
     }, [carregarHistorico]),
   );
+
+  useEffect(() => {
+    if (route?.params?.timestamp) {
+      carregarHistorico();
+    }
+  }, [route?.params?.timestamp, carregarHistorico]);
 
   const doacoesFiltradas = useMemo(() => {
     if (!filtro.trim()) {
