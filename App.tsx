@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import TelaListaPontos, { pontosMock, Ponto } from './TelaListaPontos';
-import TelaDetalhePontos from './TelaDetalhePonto';
-import TelaMinhasDoacoes from './TelaMinhasDoacoes';
-import { listarDoacoes } from './doacoesStorage';
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useEffect, useState } from "react";
+import { Text, TouchableOpacity } from "react-native";
+import TelaDetalheDoacao from "./TelaDetalheDoacao";
+import TelaDetalhePontos from "./TelaDetalhePonto";
+import TelaListaPontos, { Ponto, pontosMock } from "./TelaListaPontos";
+import TelaMinhasDoacoes from "./TelaMinhasDoacoes";
+import { listarDoacoes } from "./doacoesStorage";
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
@@ -22,13 +24,16 @@ export default function App() {
                 .filter((d) => d.pontoId === p.id)
                 .reduce((acc, d) => acc + (Number(d.quantidade) || 0), 0);
               return totalDoado > 0
-                ? { ...p, quantidadeAlimentos: p.quantidadeAlimentos + totalDoado }
+                ? {
+                    ...p,
+                    quantidadeAlimentos: p.quantidadeAlimentos + totalDoado,
+                  }
                 : p;
-            })
+            }),
           );
         }
       } catch (error) {
-        console.error('Erro ao carregar histórico de doações:', error);
+        console.error("Erro ao carregar histórico de doações:", error);
       }
     }
 
@@ -40,8 +45,8 @@ export default function App() {
       pontosAtuais.map((p) =>
         p.id === pontoId
           ? { ...p, quantidadeAlimentos: p.quantidadeAlimentos + quantidade }
-          : p
-      )
+          : p,
+      ),
     );
   }
 
@@ -50,25 +55,31 @@ export default function App() {
       <Stack.Navigator
         initialRouteName="Lista"
         screenOptions={{
-          contentStyle: { flex: 1, backgroundColor: '#F4F6F8' },
+          contentStyle: { flex: 1, backgroundColor: "#F4F6F8" },
         }}
       >
         <Stack.Screen
           name="Lista"
           options={({ navigation }: any) => ({
-            title: 'Pontos de Coleta',
+            title: "Pontos de Coleta",
             headerRight: () => (
               <TouchableOpacity
-                onPress={() => navigation.navigate('MinhasDoacoes')}
+                onPress={() => navigation.navigate("MinhasDoacoes")}
                 style={{
+                  marginRight: 16,
                   paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  backgroundColor: '#2563EB',
+                  paddingVertical: 8,
+                  backgroundColor: "#2563EB",
                   borderRadius: 6,
+                  minHeight: 44,
+                  justifyContent: "center",
+                  alignItems: "center",
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 13 }}>
+                <Text
+                  style={{ color: "#FFFFFF", fontWeight: "bold", fontSize: 13 }}
+                >
                   Minhas Doações
                 </Text>
               </TouchableOpacity>
@@ -83,11 +94,20 @@ export default function App() {
             />
           )}
         </Stack.Screen>
-        <Stack.Screen name="Detalhe" options={{ title: 'Detalhes do Ponto' }}>
+        <Stack.Screen name="Detalhe" options={{ title: "Detalhes do Ponto" }}>
           {(props: any) => <TelaDetalhePontos {...props} pontos={pontos} />}
         </Stack.Screen>
-        <Stack.Screen name="MinhasDoacoes" options={{ title: 'Minhas doações' }}>
+        <Stack.Screen
+          name="MinhasDoacoes"
+          options={{ title: "Minhas doações" }}
+        >
           {(props: any) => <TelaMinhasDoacoes {...props} />}
+        </Stack.Screen>
+        <Stack.Screen
+          name="DetalheDoacao"
+          options={{ title: "Detalhes da Doação" }}
+        >
+          {(props: any) => <TelaDetalheDoacao {...props} />}
         </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>

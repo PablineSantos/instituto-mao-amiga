@@ -80,9 +80,24 @@ export async function limparDoacoes(): Promise<void> {
   }
 }
 
+/**
+ * Removes a donation by its id from AsyncStorage.
+ */
+export async function excluirDoacao(id: string): Promise<void> {
+  try {
+    const doacoesExistentes = await listarDoacoes();
+    const listaAtualizada = doacoesExistentes.filter((d) => String(d.id) !== String(id));
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(listaAtualizada));
+  } catch (error) {
+    console.error('Erro ao excluir doação no AsyncStorage:', error);
+    throw error;
+  }
+}
+
 export default {
   STORAGE_KEY,
   listarDoacoes,
   salvarDoacao,
   limparDoacoes,
+  excluirDoacao,
 };
