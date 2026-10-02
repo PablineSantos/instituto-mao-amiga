@@ -1,16 +1,36 @@
-import React from 'react';
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-} from 'react-native';
-import { Doacao, excluirDoacao } from './doacoesStorage';
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { Doacao, excluirDoacao, listarDoacoes } from "./doacoesStorage";
 
 export default function TelaDetalheDoacao({ route, navigation }: any) {
-  const doacao: Doacao = route?.params?.doacao || route?.params;
+  const [doacao, setDoacao] = useState<Doacao>(
+    route?.params?.doacao || route?.params,
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      async function recarregar() {
+        if (doacao?.id) {
+          const lista = await listarDoacoes();
+          const encontrada = lista.find(
+            (d) => String(d.id) === String(doacao.id),
+          );
+          if (encontrada) {
+            setDoacao(encontrada);
+          }
+        }
+      }
+      recarregar();
+    }, [doacao?.id]),
+  );
 
   if (!doacao || !doacao.id) {
     return (
@@ -28,41 +48,44 @@ export default function TelaDetalheDoacao({ route, navigation }: any) {
   }
 
   const dataFormatada = doacao.criadoEm
-    ? new Date(doacao.criadoEm).toLocaleString('pt-BR', {
-        dateStyle: 'long',
-        timeStyle: 'short',
+    ? new Date(doacao.criadoEm).toLocaleString("pt-BR", {
+        dateStyle: "long",
+        timeStyle: "short",
       })
-    : 'Data não informada';
+    : "Data não informada";
 
   function confirmarExclusao() {
     Alert.alert(
-      'Confirmar exclusão',
-      'Deseja realmente excluir esta doação do histórico?',
+      "Confirmar exclusão",
+      "Deseja realmente excluir esta doação do histórico?",
       [
         {
-          text: 'Cancelar',
-          style: 'cancel',
+          text: "Cancelar",
+          style: "cancel",
         },
         {
-          text: 'Excluir',
-          style: 'destructive',
+          text: "Excluir",
+          style: "destructive",
           onPress: async () => {
             try {
               await excluirDoacao(String(doacao.id));
               navigation.goBack();
             } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir a doação.');
+              Alert.alert("Erro", "Não foi possível excluir a doação.");
             }
           },
         },
-      ]
+      ],
     );
   }
 
   return (
-    <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.scrollContent}
+    >
       <View style={styles.card}>
-        <Text style={styles.titulo}>{doacao.tipoItem || 'Doação'}</Text>
+        <Text style={styles.titulo}>{doacao.tipoItem || "Doação"}</Text>
 
         <View style={styles.infoContainer}>
           <Text style={styles.label}>ID da Doação:</Text>
@@ -71,23 +94,33 @@ export default function TelaDetalheDoacao({ route, navigation }: any) {
 
         <View style={styles.infoContainer}>
           <Text style={styles.label}>Tipo do Item:</Text>
-          <Text style={styles.valor}>{doacao.tipoItem || 'Não informado'}</Text>
+          <Text style={styles.valor}>{doacao.tipoItem || "Não informado"}</Text>
         </View>
 
         <View style={styles.infoContainer}>
           <Text style={styles.label}>Quantidade:</Text>
-          <Text style={styles.valor}>{doacao.quantidade ?? '0'}</Text>
+          <Text style={styles.valor}>{doacao.quantidade ?? "0"}</Text>
         </View>
 
         <View style={styles.infoContainer}>
           <Text style={styles.label}>Ponto de Destino:</Text>
-          <Text style={styles.valor}>{doacao.pontoDestino || 'Não especificado'}</Text>
+          <Text style={styles.valor}>
+            {doacao.pontoDestino || "Não especificado"}
+          </Text>
         </View>
 
         <View style={styles.infoContainer}>
           <Text style={styles.label}>Data e Hora do Registro:</Text>
           <Text style={styles.valor}>{dataFormatada}</Text>
         </View>
+
+        <TouchableOpacity
+          style={styles.botaoEditar}
+          onPress={() => navigation.navigate("Lista", { doacaoEdicao: doacao })}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.textoBotaoEditar}>Editar Doação</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.botaoExcluir}
@@ -104,83 +137,102 @@ export default function TelaDetalheDoacao({ route, navigation }: any) {
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: "#F4F6F8",
   },
   scrollContent: {
     padding: 16,
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 24,
     maxWidth: 600,
-    width: '100%',
-    alignSelf: 'center',
-    shadowColor: '#000',
+    width: "100%",
+    alignSelf: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
   },
   titulo: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: "bold",
+    color: "#1F2937",
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   infoContainer: {
     marginBottom: 16,
   },
   label: {
     fontSize: 13,
-    color: '#6B7280',
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    color: "#6B7280",
+    fontWeight: "bold",
+    textTransform: "uppercase",
   },
   valor: {
     fontSize: 16,
-    color: '#1F2937',
+    color: "#1F2937",
     marginTop: 4,
   },
-  botaoExcluir: {
-    backgroundColor: '#DC2626',
+  botaoEditar: {
+    backgroundColor: "#2563EB",
     borderRadius: 8,
     minHeight: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  textoBotaoExcluir: {
-    color: '#FFFFFF',
+  textoBotaoEditar: {
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
+  },
+  botaoExcluir: {
+    backgroundColor: "#DC2626",
+    borderRadius: 8,
+    minHeight: 48,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  textoBotaoExcluir: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   containerVazio: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   textoVazio: {
     fontSize: 16,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 16,
   },
   botaoVoltar: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   textoBotaoVoltar: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
 });
