@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     Alert,
     Keyboard,
@@ -11,7 +11,12 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { listarDoacoes, salvarDoacao } from "./doacoesStorage";
+import {
+    atualizarDoacao,
+    Doacao,
+    listarDoacoes,
+    salvarDoacao,
+} from "./doacoesStorage";
 
 export type Ponto = {
   id: number;
@@ -100,13 +105,38 @@ export const pontosMock: Ponto[] = [
 
 export default function TelaListaPontos({
   navigation,
+  route,
   pontos: pontosProps = pontosMock,
   onRegistrarDoacao,
 }: any) {
-  const [tipoItem, setTipoItem] = useState("");
-  const [quantidade, setQuantidade] = useState("");
-  const [pontoDestino, setPontoDestino] = useState("");
+  const doacaoEdicao: Doacao | undefined = route?.params?.doacaoEdicao;
+
+  const [tipoItem, setTipoItem] = useState(doacaoEdicao?.tipoItem || "");
+  const [quantidade, setQuantidade] = useState(
+    doacaoEdicao?.quantidade !== undefined
+      ? String(doacaoEdicao.quantidade)
+      : "",
+  );
+  const [pontoDestino, setPontoDestino] = useState(
+    doacaoEdicao?.pontoDestino || "",
+  );
   const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    if (doacaoEdicao) {
+      setTipoItem(doacaoEdicao.tipoItem || "");
+      setQuantidade(
+        doacaoEdicao.quantidade !== undefined
+          ? String(doacaoEdicao.quantidade)
+          : "",
+      );
+      setPontoDestino(doacaoEdicao.pontoDestino || "");
+      setErro("");
+      navigation.setOptions({ title: "Editar Doação" });
+    } else {
+      navigation.setOptions({ title: "Pontos de Coleta" });
+    }
+  }, [doacaoEdicao, navigation]);
 
   const [pontosLocais, setPontosLocais] = useState<Ponto[]>(pontosProps);
   const pontos = onRegistrarDoacao ? pontosProps : pontosLocais;
@@ -176,6 +206,50 @@ export default function TelaListaPontos({
         String(p.id) === busca,
     );
 
+    if (doacaoEdicao) {
+      const doacaoAtualizada: Doacao = {
+        ...doacaoEdicao,
+        tipoItem: tipoItem.trim(),
+        quantidade: quantidadeNumerica,
+        pontoDestino: pontoEncontrado
+          ? pontoEncontrado.nome
+          : pontoDestino.trim(),
+        pontoId: pontoEncontrado ? pontoEncontrado.id : doacaoEdicao.pontoId,
+      };
+
+      try {
+        await atualizarDoacao(doacaoAtualizada);
+      } catch (e) {
+        console.error("Erro ao atualizar doação:", e);
+        Alert.alert("Erro", "Não foi possível atualizar a doação.");
+        return;
+      }
+
+      const diferencaQuantidade =
+        quantidadeNumerica - (Number(doacaoEdicao.quantidade) || 0);
+      if (diferencaQuantidade !== 0 && pontoEncontrado) {
+        if (onRegistrarDoacao) {
+          onRegistrarDoacao(pontoEncontrado.id, diferencaQuantidade);
+        } else {
+          setPontosLocais((atuais) =>
+            atuais.map((p) =>
+              p.id === pontoEncontrado.id
+                ? {
+                    ...p,
+                    quantidadeAlimentos:
+                      p.quantidadeAlimentos + diferencaQuantidade,
+                  }
+                : p,
+            ),
+          );
+        }
+      }
+
+      Alert.alert("Sucesso", "Doação atualizada com sucesso!");
+      navigation.goBack();
+      return;
+    }
+
     try {
       await salvarDoacao({
         tipoItem: tipoItem.trim(),
@@ -219,6 +293,10 @@ export default function TelaListaPontos({
     Keyboard.dismiss();
   }
 
+  function cancelarEdicao() {
+    navigation.goBack();
+  }
+
   return (
     <ScrollView
       style={[
@@ -236,7 +314,9 @@ export default function TelaListaPontos({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>Registrar Doação</Text>
+          <Text style={styles.formTitle}>
+            {doacaoEdicao ? "Editar Doação" : "Registrar Doação"}
+          </Text>
 
           <TextInput
             style={styles.input}
@@ -282,16 +362,30 @@ export default function TelaListaPontos({
             onPress={validarESalvar}
             activeOpacity={0.8}
           >
-            <Text style={styles.textoBotao}>Registrar Doação</Text>
+            <Text style={styles.textoBotao}>
+              {doacaoEdicao ? "Salvar Alterações" : "Registrar Doação"}
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.botaoHistorico}
-            onPress={() => navigation.navigate("MinhasDoacoes")}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.textoBotaoHistorico}>Ver Minhas Doações</Text>
-          </TouchableOpacity>
+          {doacaoEdicao && (
+            <TouchableOpacity
+              style={styles.botaoCancelar}
+              onPress={cancelarEdicao}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.textoBotaoCancelar}>Cancelar</Text>
+            </TouchableOpacity>
+          )}
+
+          {!doacaoEdicao && (
+            <TouchableOpacity
+              style={styles.botaoHistorico}
+              onPress={() => navigation.navigate("MinhasDoacoes")}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.textoBotaoHistorico}>Ver Minhas Doações</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
 
@@ -389,6 +483,20 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   textoBotao: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
+  botaoCancelar: {
+    backgroundColor: "#F3F4F6",
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    width: "100%",
+  },
+  textoBotaoCancelar: { color: "#4B5563", fontSize: 16, fontWeight: "bold" },
   botaoHistorico: {
     backgroundColor: "#EEF2FF",
     minHeight: 48,

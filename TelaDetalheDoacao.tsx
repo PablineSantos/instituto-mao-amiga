@@ -54,7 +54,6 @@ export default function TelaDetalheDoacao({ route, navigation }: any) {
         timeStyle: "short",
       })
     : "Data não informada";
-
   async function executarExclusao() {
     try {
       await excluirDoacao(String(doacao.id));
@@ -96,7 +95,6 @@ export default function TelaDetalheDoacao({ route, navigation }: any) {
       { cancelable: true },
     );
   }
-
   return (
     <ScrollView
       style={styles.scrollView}
