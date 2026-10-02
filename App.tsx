@@ -1,11 +1,11 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, TouchableOpacity } from "react-native";
+import TelaDetalheDoacao from "./TelaDetalheDoacao";
 import TelaDetalhePontos from "./TelaDetalhePonto";
 import TelaListaPontos, { Ponto, pontosMock } from "./TelaListaPontos";
 import TelaMinhasDoacoes from "./TelaMinhasDoacoes";
-import TelaDetalheDoacao from "./TelaDetalheDoacao";
 import { listarDoacoes } from "./doacoesStorage";
 
 const Stack = createNativeStackNavigator();
