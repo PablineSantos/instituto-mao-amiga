@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Text,
   TouchableOpacity,
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { salvarDoacao, listarDoacoes } from './doacoesStorage';
 
 export type Ponto = {
   id: number;
@@ -46,10 +47,29 @@ export default function TelaListaPontos({
   const [pontosLocais, setPontosLocais] = useState<Ponto[]>(pontosProps);
   const pontos = onRegistrarDoacao ? pontosProps : pontosLocais;
 
+  useEffect(() => {
+    if (!onRegistrarDoacao) {
+      listarDoacoes().then((doacoes) => {
+        if (doacoes && doacoes.length > 0) {
+          setPontosLocais((atuais) =>
+            atuais.map((p) => {
+              const totalDoado = doacoes
+                .filter((d) => d.pontoId === p.id)
+                .reduce((acc, d) => acc + (Number(d.quantidade) || 0), 0);
+              return totalDoado > 0
+                ? { ...p, quantidadeAlimentos: p.quantidadeAlimentos + totalDoado }
+                : p;
+            })
+          );
+        }
+      });
+    }
+  }, [onRegistrarDoacao]);
+
   const inputQuantidadeRef = useRef<TextInput>(null);
   const inputPontoDestinoRef = useRef<TextInput>(null);
 
-  function validarESalvar() {
+  async function validarESalvar() {
     if (tipoItem.trim() === '') {
       setErro('O tipo do item não pode ficar vazio.');
       return;
@@ -88,6 +108,17 @@ export default function TelaListaPontos({
         p.nome.toLowerCase().includes(busca) ||
         String(p.id) === busca
     );
+
+    try {
+      await salvarDoacao({
+        tipoItem: tipoItem.trim(),
+        quantidade: quantidadeNumerica,
+        pontoDestino: pontoEncontrado ? pontoEncontrado.nome : pontoDestino.trim(),
+        pontoId: pontoEncontrado ? pontoEncontrado.id : undefined,
+      });
+    } catch (e) {
+      console.error('Erro ao salvar doação:', e);
+    }
 
     if (pontoEncontrado) {
       if (onRegistrarDoacao) {
