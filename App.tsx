@@ -58,7 +58,7 @@ export default function App() {
           contentStyle: { flex: 1, backgroundColor: "#F4F6F8" },
         }}
       >
-        <Stack.Screen
+             <Stack.Screen
           name="Lista"
           options={({ route, navigation }: any) => ({
             title: route?.params?.doacaoEdicao
@@ -70,14 +70,14 @@ export default function App() {
                   <TouchableOpacity
                     onPress={() => navigation.navigate("MinhasDoacoes")}
                     style={{
-                      minWidth: 44,
-                      minHeight: 44,
-                      justifyContent: "center",
-                      alignItems: "center",
+                      marginRight: 16,
                       paddingHorizontal: 12,
                       paddingVertical: 8,
                       backgroundColor: "#2563EB",
-                      borderRadius: 8,
+                      borderRadius: 6,
+                      minHeight: 44,
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
                     activeOpacity={0.8}
                   >
