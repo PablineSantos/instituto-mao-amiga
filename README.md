@@ -1,6 +1,32 @@
-# Instuição mão amiga
-Um aplicativo mobile para o Instituto Mão Amiga, focado em digitalizar a logística de doações.
+# Instituto Mão Amiga
+Um aplicativo mobile em React Native e Expo para o Instituto Mão Amiga, focado em digitalizar a logística e histórico de doações.
 
+## 📱 Roteiro de Demonstração (Até 3 Minutos)
+
+Para o roteiro completo detalhado, consulte também [ROTEIRO_DEMONSTRACAO.md](./ROTEIRO_DEMONSTRACAO.md).
+
+1. **Registrar Doação (0:00 - 0:30):**
+   - Na tela inicial ("Pontos de Coleta"), preencher tipo do item, quantidade e ponto de destino no formulário.
+   - Pressionar "Registrar Doação" e confirmar a mensagem de sucesso e a atualização do ponto.
+2. **Ver Histórico e Resumo (0:30 - 1:00):**
+   - Acessar "Minhas Doações" pelo botão no cabeçalho ou após o formulário.
+   - Observar o card de "Resumo por Tipo" com os totais ordenados por maior quantidade e a lista via `FlatList`.
+3. **Filtrar Doações (1:00 - 1:30):**
+   - Digitar no campo de busca para filtrar por tipo de item em tempo real (sem distinção de maiúsculas/minúsculas).
+   - Testar busca sem resultados para conferir a mensagem informativa com o termo buscado e limpar a busca.
+4. **Editar Doação (1:30 - 2:00):**
+   - Tocar em um item do histórico para abrir a tela de Detalhes.
+   - Tocar em "Editar Doação", alterar a quantidade no formulário reutilizado e salvar.
+   - Conferir a atualização imediata no detalhe e no resumo.
+5. **Excluir Doação (2:00 - 2:30):**
+   - Na tela de Detalhes, tocar em "Excluir Doação".
+   - Demonstrar o alerta de confirmação: "Cancelar" não apaga nada; "Excluir" remove do `AsyncStorage` e atualiza a lista.
+6. **Fechar e Reabrir o App (2:30 - 2:45):**
+   - Recarregar/reiniciar o app e verificar a persistência dos dados salvos no `AsyncStorage`.
+7. **Defesa / Decisão Técnica (2:45 - 3:00):**
+   - Explicar por que os totais são calculados em tempo de execução via `useMemo` (garantia de fonte única da verdade e eliminação de inconsistências) e por que o acesso ao armazenamento é isolado em `doacoesStorage.ts` (desacoplamento e facilidade de manutenção/testes).
+
+---
 # Welcome to your Expo app 👋
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
