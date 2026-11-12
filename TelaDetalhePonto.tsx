@@ -1,102 +1,178 @@
-import React from 'react';
-import { View, StyleSheet, Text, ScrollView } from "react-native";
-import { Ponto, pontosMock } from "./TelaListaPontos";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { ApiError, mensagemDeErro } from "./src/services/api";
+import { buscarPonto, excluirPonto, Ponto } from "./src/services/pontosService";
 
-function DetalheDoPonto({ ponto }: { ponto: Ponto }) {
+function Campo({ label, valor }: { label: string; valor: string }) {
   return (
-    <View style={stylesCard.container}>
-      <Text style={stylesCard.titulo}>{ponto.nome}</Text>
-      
-      <View style={stylesCard.infoContainer}>
-        <Text style={stylesCard.label}>Tipo de Serviço:</Text>
-        <Text style={stylesCard.texto}>{ponto.tipo}</Text>
-      </View>
-
-      <View style={stylesCard.infoContainer}>
-        <Text style={stylesCard.label}>Endereço:</Text>
-        <Text style={stylesCard.texto}>{ponto.endereco}</Text>
-      </View>
-
-      <View style={stylesCard.infoContainer}>
-        <Text style={stylesCard.label}>Dias e Horários:</Text>
-        <Text style={stylesCard.texto}>{ponto.horario}</Text>
-      </View>
-
-      <View style={stylesCard.infoContainer}>
-        <Text style={stylesCard.label}>Itens Aceitos/Distribuídos:</Text>
-        <Text style={stylesCard.texto}>{ponto.itens}</Text>
-      </View>
-
-      <View style={stylesCard.infoContainer}>
-        <Text style={stylesCard.label}>Total de Alimentos Registrados:</Text>
-        <Text style={stylesCard.texto}>{ponto.quantidadeAlimentos}</Text>
-      </View>
+    <View style={styles.campo}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.texto}>{valor}</Text>
     </View>
   );
 }
 
-export default function TelaDetalhePontos({ route, pontos = pontosMock }: any) {
-  const { id } = route?.params || {};
-  const pontoEncontrado = (pontos || pontosMock).find((p: Ponto) => p.id === id);
+export default function TelaDetalhePonto({ route, navigation }: any) {
+  const id: string | undefined = route?.params?.id;
+  const [ponto, setPonto] = useState<Ponto | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState("");
+  const [erroAcao, setErroAcao] = useState("");
 
-  if (!pontoEncontrado) {
+  async function executarExclusao() {
+    if (!ponto) {
+      return;
+    }
+    try {
+      await excluirPonto(ponto.id);
+      navigation.goBack();
+    } catch (e) {
+      setErroAcao(mensagemDeErro(e, "Ponto"));
+    }
+  }
+
+  function confirmarExclusao() {
+    if (Platform.OS === "web") {
+      if (window.confirm("Deseja realmente excluir este ponto?")) {
+        executarExclusao();
+      }
+      return;
+    }
+    Alert.alert("Confirmar exclusão", "Deseja realmente excluir este ponto?", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Excluir", style: "destructive", onPress: executarExclusao },
+    ]);
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+      async function carregar() {
+        if (!id) {
+          setErro("ponto não encontrado");
+          setCarregando(false);
+          return;
+        }
+        try {
+          const resultado = await buscarPonto(id);
+          if (ativo) {
+            setPonto(resultado);
+            setErro("");
+          }
+        } catch (e) {
+          if (ativo) {
+            setPonto(null);
+            setErro(
+              e instanceof ApiError && e.status === 404
+                ? "ponto não encontrado"
+                : mensagemDeErro(e, "Ponto"),
+            );
+          }
+        } finally {
+          if (ativo) {
+            setCarregando(false);
+          }
+        }
+      }
+      carregar();
+      return () => {
+        ativo = false;
+      };
+    }, [id]),
+  );
+
+  if (carregando) {
     return (
-      <View style={styles.container}>
-        <Text>Ponto de coleta não encontrado.</Text>
+      <View style={styles.centro}>
+        <ActivityIndicator size="large" color="#2563EB" />
+      </View>
+    );
+  }
+
+  if (!ponto) {
+    return (
+      <View style={styles.centro}>
+        <Text style={styles.erro}>{erro}</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={{ flex: 1, width: '100%' }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-      <DetalheDoPonto ponto={pontoEncontrado} />
+    <ScrollView contentContainerStyle={styles.scroll}>
+      <View style={styles.card}>
+        <Text style={styles.titulo}>{ponto.nome}</Text>
+        <Campo label="Tipo" valor={ponto.tipo} />
+        <Campo label="Endereço" valor={ponto.endereco} />
+        <Campo label="Bairro" valor={ponto.bairro} />
+        <Campo label="Horário" valor={ponto.horario} />
+
+        <TouchableOpacity
+          style={styles.botaoEditar}
+          onPress={() => navigation.navigate("FormPonto", { ponto })}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.textoBotao}>Editar ponto</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.botaoExcluir}
+          onPress={confirmarExclusao}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.textoBotao}>Excluir ponto</Text>
+        </TouchableOpacity>
+        {erroAcao !== "" && <Text style={styles.erro}>{erroAcao}</Text>}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 16,
-    justifyContent: 'center',
-    backgroundColor: '#F4F6F8',
-  }
-});
-
-const stylesCard = StyleSheet.create({
-  container: {
+  centro: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+  erro: { color: "#C62828", fontSize: 16, textAlign: "center" },
+  scroll: { flexGrow: 1, padding: 16, backgroundColor: "#F4F6F8" },
+  card: {
     padding: 24,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#fff",
     borderRadius: 8,
-    width: '100%',
+    width: "100%",
     maxWidth: 600,
-    alignSelf: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3, 
+    alignSelf: "center",
   },
   titulo: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
-  infoContainer: {
-    marginBottom: 16,
+  campo: { marginBottom: 16 },
+  label: { fontSize: 14, color: "#888", fontWeight: "bold", textTransform: "uppercase" },
+  texto: { fontSize: 16, color: "#444", marginTop: 4 },
+  botaoEditar: {
+    backgroundColor: "#2563EB",
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
   },
-  label: {
-    fontSize: 14,
-    color: '#888',
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+  botaoExcluir: {
+    backgroundColor: "#C62828",
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
   },
-  texto: {
-    fontSize: 16,
-    color: '#444',
-    marginTop: 4,
-  }
+  textoBotao: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
 });
