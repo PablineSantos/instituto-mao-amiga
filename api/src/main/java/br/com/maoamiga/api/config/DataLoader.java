@@ -30,8 +30,10 @@ public class DataLoader {
                 return;
             }
             List<Ponto> pontos = new ArrayList<>();
-            for (int i = 0; i < BASE.length; i++) {
-                pontos.add(novo(BASE[i][0], BASE[i][1], BASE[i][2], i % 2 == 0 ? "coleta" : "distribuição"));
+            for (int i = 0; i < 27; i++) {
+                String[] b = BASE[i % BASE.length];
+                String nome = i < BASE.length ? b[0] : b[0] + " " + (i / BASE.length + 1);
+                pontos.add(novo(nome, b[1], b[2], i % 2 == 0 ? "coleta" : "distribuição"));
             }
             repository.saveAll(pontos);
         };

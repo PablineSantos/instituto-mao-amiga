@@ -5,6 +5,9 @@ import br.com.maoamiga.api.dto.PontoResponseDTO;
 import br.com.maoamiga.api.service.PontoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +25,13 @@ public class PontoController {
     @GetMapping
     public List<PontoResponseDTO> listar() {
         return service.listar();
+    }
+
+    @GetMapping("/filtro")
+    public Page<PontoResponseDTO> filtrar(
+            @RequestParam(required = false) String filtro,
+            @PageableDefault(size = 10, sort = "nome") Pageable pageable) {
+        return service.filtrar(filtro, pageable);
     }
 
     @GetMapping("/{id}")
