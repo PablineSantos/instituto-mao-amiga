@@ -1,11 +1,11 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Platform, Text, TouchableOpacity } from "react-native";
 import TelaDetalheDoacao from "./TelaDetalheDoacao";
 import TelaDetalhePonto from "./TelaDetalhePonto";
 import TelaFormDoacao from "./TelaFormDoacao";
 import TelaFormPonto from "./TelaFormPonto";
 import TelaListaPontos from "./TelaListaPontos";
+import TelaMeusPontos from "./TelaMeusPontos";
 import TelaMinhasDoacoes from "./TelaMinhasDoacoes";
 
 const Stack = createNativeStackNavigator();
@@ -22,27 +22,7 @@ export default function App() {
         <Stack.Screen
           name="Lista"
           component={TelaListaPontos}
-          options={({ navigation }: any) => ({
-            title: "Pontos de Coleta",
-            headerTitleAlign: "left",
-            headerRight: () => (
-              <TouchableOpacity
-                onPress={() => navigation.navigate("MinhasDoacoes")}
-                style={{
-                  marginRight: Platform.OS === "web" ? 16 : 0,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  backgroundColor: "#2563EB",
-                  borderRadius: 8,
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 13 }}>
-                  Minhas Doações
-                </Text>
-              </TouchableOpacity>
-            ),
-          })}
+          options={{ title: "Pontos de Coleta", headerTitleAlign: "left" }}
         />
         <Stack.Screen
           name="Detalhe"
@@ -55,6 +35,11 @@ export default function App() {
           options={({ route }: any) => ({
             title: route?.params?.ponto ? "Editar Ponto" : "Novo Ponto",
           })}
+        />
+        <Stack.Screen
+          name="MeusPontos"
+          component={TelaMeusPontos}
+          options={{ title: "Meus pontos" }}
         />
         <Stack.Screen
           name="FormDoacao"

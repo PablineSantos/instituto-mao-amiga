@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { mensagemDeErro } from "./src/services/api";
+import { alternarFavorito, listarFavoritos } from "./src/services/favoritosStorage";
 import { buscarPagina, Ponto } from "./src/services/pontosService";
 
 export default function TelaListaPontos({ navigation }: any) {
@@ -21,6 +22,17 @@ export default function TelaListaPontos({ navigation }: any) {
   const [carregando, setCarregando] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [erro, setErro] = useState("");
+  const [favoritos, setFavoritos] = useState<string[]>([]);
+
+  async function alternar(id: string) {
+    setFavoritos(await alternarFavorito(id));
+  }
+
+  useFocusEffect(
+    useCallback(() => {
+      listarFavoritos().then(setFavoritos);
+    }, []),
+  );
 
   // Guards: avoid duplicate page requests and ignore stale responses.
   const emAndamento = useRef(false);
@@ -93,6 +105,20 @@ export default function TelaListaPontos({ navigation }: any) {
       >
         <Text style={styles.textoBotao}>+ Novo ponto</Text>
       </TouchableOpacity>
+      <View style={styles.atalhos}>
+        <TouchableOpacity
+          style={styles.atalho}
+          onPress={() => navigation.navigate("MeusPontos")}
+        >
+          <Text style={styles.textoAtalho}>♥ Meus pontos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.atalho}
+          onPress={() => navigation.navigate("MinhasDoacoes")}
+        >
+          <Text style={styles.textoAtalho}>Minhas doações</Text>
+        </TouchableOpacity>
+      </View>
       <TextInput
         style={styles.busca}
         placeholder="Buscar por nome ou bairro..."
@@ -131,16 +157,27 @@ export default function TelaListaPontos({ navigation }: any) {
             carregandoMais ? <ActivityIndicator color="#2563EB" /> : null
           }
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.item}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate("Detalhe", { id: item.id })}
-            >
-              <Text style={styles.titulo}>{item.nome}</Text>
-              <Text style={styles.subtitulo}>
-                {item.tipo} • {item.bairro}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.item}>
+              <TouchableOpacity
+                style={styles.info}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate("Detalhe", { id: item.id })}
+              >
+                <Text style={styles.titulo}>{item.nome}</Text>
+                <Text style={styles.subtitulo}>
+                  {item.tipo} • {item.bairro}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.coracao}
+                onPress={() => alternar(item.id)}
+                accessibilityLabel="Favoritar ponto"
+              >
+                <Text style={styles.coracaoTexto}>
+                  {favoritos.includes(item.id) ? "♥" : "♡"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
         />
       )}
@@ -184,15 +221,30 @@ const styles = StyleSheet.create({
   lista: { padding: 16, paddingBottom: 48 },
   vazio: { textAlign: "center", color: "#6B7280", marginTop: 32 },
   item: {
-    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     marginBottom: 8,
     minHeight: 48,
-    justifyContent: "center",
   },
+  info: { flex: 1, padding: 16 },
+  coracao: { width: 48, height: 48, justifyContent: "center", alignItems: "center" },
+  coracaoTexto: { fontSize: 26, color: "#DC2626" },
+  atalhos: { flexDirection: "row", gap: 8, marginHorizontal: 16, marginTop: 8 },
+  atalho: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#EEF2FF",
+    borderWidth: 1,
+    borderColor: "#C7D2FE",
+  },
+  textoAtalho: { color: "#3730A3", fontWeight: "600", fontSize: 14 },
   titulo: { fontSize: 18, fontWeight: "bold", color: "#1F2937" },
   subtitulo: { fontSize: 14, color: "#6B7280", marginTop: 4 },
 });
