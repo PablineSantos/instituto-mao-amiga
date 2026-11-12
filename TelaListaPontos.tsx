@@ -1,523 +1,172 @@
-import { useEffect, useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import {
-    atualizarDoacao,
-    Doacao,
-    listarDoacoes,
-    salvarDoacao,
-} from "./doacoesStorage";
+import { mensagemDeErro } from "./src/services/api";
+import { buscarPagina, Ponto } from "./src/services/pontosService";
 
-export type Ponto = {
-  id: number;
-  nome: string;
-  endereco: string;
-  horario: string;
-  itens: string;
-  tipo: string;
-  quantidadeAlimentos: number;
-};
-
-export const pontosMock: Ponto[] = [
-  {
-    id: 1,
-    nome: "Ponto Universitário",
-    endereco: "Setor Leste Universitário, Goiânia - GO",
-    horario: "Seg a Sex, 08h às 18h",
-    itens: "Recebe alimentos não perecíveis",
-    tipo: "Coleta",
-    quantidadeAlimentos: 1000,
-  },
-  {
-    id: 2,
-    nome: "Central Fatesg",
-    endereco: "Faculdade SENAI Fatesg, Goiânia - GO",
-    horario: "Seg a Sab, 09h às 21h",
-    itens: "Recebe e distribui eletrônicos e roupas",
-    tipo: "Coleta e Distribuição",
-    quantidadeAlimentos: 450,
-  },
-  {
-    id: 3,
-    nome: "Base Solidária Anicuns",
-    endereco: "Centro, Anicuns - GO",
-    horario: "Ter a Dom, 07h às 17h",
-    itens: "Distribui cestas básicas",
-    tipo: "Distribuição",
-    quantidadeAlimentos: 980,
-  },
-  {
-    id: 4,
-    nome: "Coleta Leste",
-    endereco: "Rua 227, Setor Leste Universitário, Goiânia - GO",
-    horario: "Seg a Sex, 06h às 22h",
-    itens: "Recebe roupas e calçados",
-    tipo: "Coleta",
-    quantidadeAlimentos: 190,
-  },
-  {
-    id: 5,
-    nome: "Distribuição Alfa",
-    endereco: "Av. Anhanguera, Centro, Goiânia - GO",
-    horario: "Seg a Sex, 08h às 17h",
-    itens: "Distribui refeições prontas",
-    tipo: "Distribuição",
-    quantidadeAlimentos: 300,
-  },
-  {
-    id: 6,
-    nome: "Comunidade Beta",
-    endereco: "Jardim América, Goiânia - GO",
-    horario: "Sab e Dom, 08h às 12h",
-    itens: "Recebe brinquedos e livros",
-    tipo: "Coleta",
-    quantidadeAlimentos: 50,
-  },
-  {
-    id: 7,
-    nome: "Apoio Sigma",
-    endereco: "Setor Bueno, Goiânia - GO",
-    horario: "Seg a Sab, 10h às 16h",
-    itens: "Distribui kits de higiene",
-    tipo: "Distribuição",
-    quantidadeAlimentos: 200,
-  },
-  {
-    id: 8,
-    nome: "Estação Ômega",
-    endereco: "Setor Campinas, Goiânia - GO",
-    horario: "Todos os dias, 24h",
-    itens: "Recebe doações em geral",
-    tipo: "Coleta",
-    quantidadeAlimentos: 850,
-  },
-];
-
-export default function TelaListaPontos({
-  navigation,
-  route,
-  pontos: pontosProps = pontosMock,
-  onRegistrarDoacao,
-}: any) {
-  const doacaoEdicao: Doacao | undefined = route?.params?.doacaoEdicao;
-
-  const [tipoItem, setTipoItem] = useState(doacaoEdicao?.tipoItem || "");
-  const [quantidade, setQuantidade] = useState(
-    doacaoEdicao?.quantidade !== undefined
-      ? String(doacaoEdicao.quantidade)
-      : "",
-  );
-  const [pontoDestino, setPontoDestino] = useState(
-    doacaoEdicao?.pontoDestino || "",
-  );
+export default function TelaListaPontos({ navigation }: any) {
+  const [pontos, setPontos] = useState<Ponto[]>([]);
+  const [filtro, setFiltro] = useState("");
+  const [filtroAplicado, setFiltroAplicado] = useState("");
+  const [proximaPagina, setProximaPagina] = useState(0);
+  const [ultimaPagina, setUltimaPagina] = useState(false);
+  const [carregando, setCarregando] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
   const [erro, setErro] = useState("");
 
-  useEffect(() => {
-    if (doacaoEdicao) {
-      setTipoItem(doacaoEdicao.tipoItem || "");
-      setQuantidade(
-        doacaoEdicao.quantidade !== undefined
-          ? String(doacaoEdicao.quantidade)
-          : "",
-      );
-      setPontoDestino(doacaoEdicao.pontoDestino || "");
-      setErro("");
-      navigation.setOptions({ title: "Editar Doação" });
-    } else {
-      navigation.setOptions({ title: "Pontos de Coleta" });
-    }
-  }, [doacaoEdicao, navigation]);
+  // Guards: avoid duplicate page requests and ignore stale responses.
+  const emAndamento = useRef(false);
+  const requisicao = useRef(0);
 
-  const [pontosLocais, setPontosLocais] = useState<Ponto[]>(pontosProps);
-  const pontos = onRegistrarDoacao ? pontosProps : pontosLocais;
-
-  useEffect(() => {
-    if (!onRegistrarDoacao) {
-      listarDoacoes().then((doacoes) => {
-        if (doacoes && doacoes.length > 0) {
-          setPontosLocais((atuais) =>
-            atuais.map((p) => {
-              const totalDoado = doacoes
-                .filter((d) => d.pontoId === p.id)
-                .reduce((acc, d) => acc + (Number(d.quantidade) || 0), 0);
-              return totalDoado > 0
-                ? {
-                    ...p,
-                    quantidadeAlimentos: p.quantidadeAlimentos + totalDoado,
-                  }
-                : p;
-            }),
-          );
-        }
-      });
-    }
-  }, [onRegistrarDoacao]);
-
-  const inputQuantidadeRef = useRef<TextInput>(null);
-  const inputPontoDestinoRef = useRef<TextInput>(null);
-
-  async function validarESalvar() {
-    if (tipoItem.trim() === "") {
-      setErro("O tipo do item não pode ficar vazio.");
-      return;
-    }
-
-    if (tipoItem.trim().length < 2) {
-      setErro("O tipo do item deve ter pelo menos 2 caracteres.");
-      return;
-    }
-
-    if (quantidade.trim() === "") {
-      setErro("A quantidade não pode ficar vazia.");
-      return;
-    }
-
-    const quantidadeNumerica = Number(quantidade.trim());
-    if (isNaN(quantidadeNumerica) || !/^\d+$/.test(quantidade.trim())) {
-      setErro("A quantidade deve ser um número inteiro válido.");
-      return;
-    }
-
-    if (quantidadeNumerica <= 0) {
-      setErro("A quantidade precisa ser maior que zero.");
-      return;
-    }
-
-    if (pontoDestino.trim() === "") {
-      setErro("O ponto de destino não pode ficar vazio.");
-      return;
-    }
-
-    const busca = pontoDestino.trim().toLowerCase();
-    const pontoEncontrado = pontos.find(
-      (p: Ponto) =>
-        p.nome.toLowerCase() === busca ||
-        p.nome.toLowerCase().includes(busca) ||
-        String(p.id) === busca,
-    );
-
-    if (doacaoEdicao) {
-      const doacaoAtualizada: Doacao = {
-        ...doacaoEdicao,
-        tipoItem: tipoItem.trim(),
-        quantidade: quantidadeNumerica,
-        pontoDestino: pontoEncontrado
-          ? pontoEncontrado.nome
-          : pontoDestino.trim(),
-        pontoId: pontoEncontrado ? pontoEncontrado.id : doacaoEdicao.pontoId,
-      };
-
-      try {
-        await atualizarDoacao(doacaoAtualizada);
-      } catch (e) {
-        console.error("Erro ao atualizar doação:", e);
-        Alert.alert("Erro", "Não foi possível atualizar a doação.");
+  const carregarPagina = useCallback(
+    async (termo: string, pagina: number, reiniciar: boolean) => {
+      if (emAndamento.current && !reiniciar) {
         return;
       }
-
-      const diferencaQuantidade =
-        quantidadeNumerica - (Number(doacaoEdicao.quantidade) || 0);
-      if (diferencaQuantidade !== 0 && pontoEncontrado) {
-        if (onRegistrarDoacao) {
-          onRegistrarDoacao(pontoEncontrado.id, diferencaQuantidade);
-        } else {
-          setPontosLocais((atuais) =>
-            atuais.map((p) =>
-              p.id === pontoEncontrado.id
-                ? {
-                    ...p,
-                    quantidadeAlimentos:
-                      p.quantidadeAlimentos + diferencaQuantidade,
-                  }
-                : p,
-            ),
-          );
+      emAndamento.current = true;
+      const id = ++requisicao.current;
+      if (reiniciar) {
+        setCarregando(true);
+      } else {
+        setCarregandoMais(true);
+      }
+      try {
+        const resposta = await buscarPagina(termo, pagina);
+        if (id !== requisicao.current) {
+          return;
+        }
+        setPontos((atuais) =>
+          reiniciar ? resposta.content : [...atuais, ...resposta.content],
+        );
+        setProximaPagina(pagina + 1);
+        setUltimaPagina(pagina + 1 >= resposta.page.totalPages);
+        setErro("");
+      } catch (e) {
+        if (id === requisicao.current) {
+          setErro(mensagemDeErro(e, "Ponto"));
+        }
+      } finally {
+        if (id === requisicao.current) {
+          emAndamento.current = false;
+          setCarregando(false);
+          setCarregandoMais(false);
         }
       }
+    },
+    [],
+  );
 
-      Alert.alert("Sucesso", "Doação atualizada com sucesso!");
-      navigation.goBack();
+  // Every new search goes back to the first page.
+  useEffect(() => {
+    const t = setTimeout(() => setFiltroAplicado(filtro.trim()), 400);
+    return () => clearTimeout(t);
+  }, [filtro]);
+
+  useFocusEffect(
+    useCallback(() => {
+      setUltimaPagina(false);
+      carregarPagina(filtroAplicado, 0, true);
+    }, [filtroAplicado, carregarPagina]),
+  );
+
+  function carregarMais() {
+    if (ultimaPagina || emAndamento.current || erro) {
       return;
     }
-
-    try {
-      await salvarDoacao({
-        tipoItem: tipoItem.trim(),
-        quantidade: quantidadeNumerica,
-        pontoDestino: pontoEncontrado
-          ? pontoEncontrado.nome
-          : pontoDestino.trim(),
-        pontoId: pontoEncontrado ? pontoEncontrado.id : undefined,
-      });
-    } catch (e) {
-      console.error("Erro ao salvar doação:", e);
-    }
-
-    if (pontoEncontrado) {
-      if (onRegistrarDoacao) {
-        onRegistrarDoacao(pontoEncontrado.id, quantidadeNumerica);
-      } else {
-        setPontosLocais((atuais) =>
-          atuais.map((p) =>
-            p.id === pontoEncontrado.id
-              ? {
-                  ...p,
-                  quantidadeAlimentos:
-                    p.quantidadeAlimentos + quantidadeNumerica,
-                }
-              : p,
-          ),
-        );
-      }
-    }
-
-    Alert.alert(
-      "Sucesso",
-      `Doação de ${quantidadeNumerica} ${tipoItem}(s) para "${pontoDestino.trim()}" registrada com sucesso!`,
-    );
-
-    setTipoItem("");
-    setQuantidade("");
-    setPontoDestino("");
-    setErro("");
-    Keyboard.dismiss();
-  }
-
-  function cancelarEdicao() {
-    navigation.goBack();
+    carregarPagina(filtroAplicado, proximaPagina, false);
   }
 
   return (
-    <ScrollView
-      style={[
-        styles.scrollView,
-        Platform.OS === "web" &&
-          ({ height: "100%", maxHeight: "100%", overflowY: "scroll" } as any),
-      ]}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={true}
-      persistentScrollbar={true}
-    >
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>
-            {doacaoEdicao ? "Editar Doação" : "Registrar Doação"}
-          </Text>
+    <View style={styles.container}>
+      <TextInput
+        style={styles.busca}
+        placeholder="Buscar por nome ou bairro..."
+        placeholderTextColor="#9CA3AF"
+        value={filtro}
+        onChangeText={setFiltro}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Tipo do item (ex: Cesta Básica)"
-            placeholderTextColor="#888"
-            value={tipoItem}
-            onChangeText={setTipoItem}
-            returnKeyType="next"
-            onSubmitEditing={() => inputQuantidadeRef.current?.focus()}
-          />
-
-          <View style={styles.row}>
-            <TextInput
-              ref={inputQuantidadeRef}
-              style={[styles.input, styles.inputQuantidade]}
-              placeholder="Quantidade"
-              placeholderTextColor="#888"
-              value={quantidade}
-              onChangeText={(texto) =>
-                setQuantidade(texto.replace(/[^0-9]/g, ""))
-              }
-              keyboardType="number-pad"
-              inputMode="numeric"
-              returnKeyType="next"
-              onSubmitEditing={() => inputPontoDestinoRef.current?.focus()}
-            />
-            <TextInput
-              ref={inputPontoDestinoRef}
-              style={[styles.input, styles.inputDestino]}
-              placeholder="Ponto de destino"
-              placeholderTextColor="#888"
-              value={pontoDestino}
-              onChangeText={setPontoDestino}
-              returnKeyType="done"
-              onSubmitEditing={validarESalvar}
-            />
-          </View>
-
-          {erro !== "" && <Text style={styles.erro}>{erro}</Text>}
-
-          <TouchableOpacity
-            style={styles.botaoSalvar}
-            onPress={validarESalvar}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.textoBotao}>
-              {doacaoEdicao ? "Salvar Alterações" : "Registrar Doação"}
-            </Text>
-          </TouchableOpacity>
-
-          {doacaoEdicao && (
-            <TouchableOpacity
-              style={styles.botaoCancelar}
-              onPress={cancelarEdicao}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.textoBotaoCancelar}>Cancelar</Text>
-            </TouchableOpacity>
-          )}
-
-          {!doacaoEdicao && (
-            <TouchableOpacity
-              style={styles.botaoHistorico}
-              onPress={() => navigation.navigate("MinhasDoacoes")}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.textoBotaoHistorico}>Ver Minhas Doações</Text>
-            </TouchableOpacity>
-          )}
+      {carregando ? (
+        <View style={styles.centro}>
+          <ActivityIndicator size="large" color="#2563EB" />
         </View>
-      </KeyboardAvoidingView>
-
-      <View style={styles.divider} />
-
-      <Text style={styles.listaTitle}>Pontos de Coleta Disponíveis</Text>
-
-      {pontos.map((item: Ponto) => (
-        <TouchableOpacity
-          key={item.id}
-          style={styles.item}
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate("Detalhe", { id: item.id })}
-        >
-          <Text style={styles.titulo}>{item.nome}</Text>
-          <Text style={styles.subtitulo}>
-            {item.tipo} • {item.quantidadeAlimentos} alimentos registrados
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+      ) : erro && pontos.length === 0 ? (
+        <View style={styles.centro}>
+          <Text style={styles.erro}>{erro}</Text>
+          <TouchableOpacity
+            style={styles.botao}
+            onPress={() => carregarPagina(filtroAplicado, 0, true)}
+          >
+            <Text style={styles.textoBotao}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={pontos}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.lista}
+          onEndReached={carregarMais}
+          onEndReachedThreshold={0.4}
+          ListEmptyComponent={
+            <Text style={styles.vazio}>Nenhum ponto encontrado.</Text>
+          }
+          ListFooterComponent={
+            carregandoMais ? <ActivityIndicator color="#2563EB" /> : null
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.item}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate("Detalhe", { id: item.id })}
+            >
+              <Text style={styles.titulo}>{item.nome}</Text>
+              <Text style={styles.subtitulo}>
+                {item.tipo} • {item.bairro}
+              </Text>
+            </TouchableOpacity>
+          )}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-    height: "100%",
-    backgroundColor: "#F4F6F8",
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 48,
-  },
-  keyboardView: {
-    width: "100%",
-  },
-  formContainer: {
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 8,
-    width: "100%",
-  },
-  formTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginBottom: 12,
-  },
-  row: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    width: "100%",
-  },
-  input: {
+  container: { flex: 1, backgroundColor: "#F4F6F8" },
+  busca: {
     minHeight: 48,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#FFFFFF",
+    margin: 16,
+    marginBottom: 0,
     borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 12,
-    fontSize: 16,
-    color: "#333",
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    width: "100%",
-    flexShrink: 1,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#1F2937",
   },
-  inputQuantidade: {
-    flex: 1,
-    minWidth: 100,
-    width: undefined,
-  },
-  inputDestino: {
-    flex: 2,
-    minWidth: 130,
-    width: undefined,
-  },
-  erro: { color: "#C62828", marginBottom: 12, fontSize: 14, fontWeight: "500" },
-  botaoSalvar: {
+  centro: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+  erro: { color: "#C62828", fontSize: 15, textAlign: "center", marginBottom: 12 },
+  botao: {
     backgroundColor: "#2563EB",
     minHeight: 48,
     borderRadius: 8,
     justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    width: "100%",
+    paddingHorizontal: 20,
   },
-  textoBotao: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
-  botaoCancelar: {
-    backgroundColor: "#F3F4F6",
-    minHeight: 48,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    width: "100%",
-  },
-  textoBotaoCancelar: { color: "#4B5563", fontSize: 16, fontWeight: "bold" },
-  botaoHistorico: {
-    backgroundColor: "#EEF2FF",
-    minHeight: 48,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
-    width: "100%",
-  },
-  textoBotaoHistorico: { color: "#3730A3", fontSize: 16, fontWeight: "bold" },
-  divider: { height: 1, backgroundColor: "#E5E7EB", marginVertical: 16 },
-  listaTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#6B7280",
-    marginBottom: 12,
-  },
+  textoBotao: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
+  lista: { padding: 16, paddingBottom: 48 },
+  vazio: { textAlign: "center", color: "#6B7280", marginTop: 32 },
   item: {
     padding: 16,
     backgroundColor: "#FFFFFF",
@@ -525,11 +174,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
     marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
     minHeight: 48,
     justifyContent: "center",
   },

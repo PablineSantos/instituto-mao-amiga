@@ -1,55 +1,14 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useEffect, useState } from "react";
-import { Text, TouchableOpacity } from "react-native";
+import { Platform, Text, TouchableOpacity } from "react-native";
 import TelaDetalheDoacao from "./TelaDetalheDoacao";
-import TelaDetalhePontos from "./TelaDetalhePonto";
-import TelaListaPontos, { Ponto, pontosMock } from "./TelaListaPontos";
+import TelaDetalhePonto from "./TelaDetalhePonto";
+import TelaListaPontos from "./TelaListaPontos";
 import TelaMinhasDoacoes from "./TelaMinhasDoacoes";
-import { listarDoacoes } from "./doacoesStorage";
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  const [pontos, setPontos] = useState<Ponto[]>(pontosMock);
-
-  useEffect(() => {
-    async function carregarDoacoesSalvas() {
-      try {
-        const doacoes = await listarDoacoes();
-        if (doacoes && doacoes.length > 0) {
-          setPontos((pontosAtuais) =>
-            pontosAtuais.map((p) => {
-              const totalDoado = doacoes
-                .filter((d) => d.pontoId === p.id)
-                .reduce((acc, d) => acc + (Number(d.quantidade) || 0), 0);
-              return totalDoado > 0
-                ? {
-                    ...p,
-                    quantidadeAlimentos: p.quantidadeAlimentos + totalDoado,
-                  }
-                : p;
-            }),
-          );
-        }
-      } catch (error) {
-        console.error("Erro ao carregar histórico de doações:", error);
-      }
-    }
-
-    carregarDoacoesSalvas();
-  }, []);
-
-  function registrarDoacao(pontoId: number, quantidade: number) {
-    setPontos((pontosAtuais) =>
-      pontosAtuais.map((p) =>
-        p.id === pontoId
-          ? { ...p, quantidadeAlimentos: p.quantidadeAlimentos + quantidade }
-          : p,
-      ),
-    );
-  }
-
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -58,65 +17,46 @@ export default function App() {
           contentStyle: { flex: 1, backgroundColor: "#F4F6F8" },
         }}
       >
-             <Stack.Screen
+        <Stack.Screen
           name="Lista"
-          options={({ route, navigation }: any) => ({
-            title: route?.params?.doacaoEdicao
-              ? "Editar Doação"
-              : "Pontos de Coleta",
-            headerRight: route?.params?.doacaoEdicao
-              ? undefined
-              : () => (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate("MinhasDoacoes")}
-                    style={{
-                      marginRight: 16,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      backgroundColor: "#2563EB",
-                      borderRadius: 6,
-                      minHeight: 44,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text
-                      style={{
-                        color: "#FFFFFF",
-                        fontWeight: "bold",
-                        fontSize: 13,
-                      }}
-                    >
-                      Minhas Doações
-                    </Text>
-                  </TouchableOpacity>
-                ),
+          component={TelaListaPontos}
+          options={({ navigation }: any) => ({
+            title: "Pontos de Coleta",
+            headerTitleAlign: "left",
+            headerRight: () => (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("MinhasDoacoes")}
+                style={{
+                  marginRight: Platform.OS === "web" ? 16 : 0,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  backgroundColor: "#2563EB",
+                  borderRadius: 8,
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: "#FFFFFF", fontWeight: "600", fontSize: 13 }}>
+                  Minhas Doações
+                </Text>
+              </TouchableOpacity>
+            ),
           })}
-        >
-          {(props: any) => (
-            <TelaListaPontos
-              {...props}
-              pontos={pontos}
-              onRegistrarDoacao={registrarDoacao}
-            />
-          )}
-        </Stack.Screen>
-        <Stack.Screen name="Detalhe" options={{ title: "Detalhes do Ponto" }}>
-          {(props: any) => <TelaDetalhePontos {...props} pontos={pontos} />}
-        </Stack.Screen>
+        />
+        <Stack.Screen
+          name="Detalhe"
+          component={TelaDetalhePonto}
+          options={{ title: "Detalhes do Ponto" }}
+        />
         <Stack.Screen
           name="MinhasDoacoes"
+          component={TelaMinhasDoacoes}
           options={{ title: "Minhas doações" }}
-        >
-          {(props: any) => <TelaMinhasDoacoes {...props} />}
-        </Stack.Screen>
+        />
         <Stack.Screen
           name="DetalheDoacao"
+          component={TelaDetalheDoacao}
           options={{ title: "Detalhes da Doação" }}
-        >
-          {(props: any) => <TelaDetalheDoacao {...props} />}
-        </Stack.Screen>
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
