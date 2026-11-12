@@ -2,13 +2,16 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { ApiError, mensagemDeErro } from "./src/services/api";
-import { buscarPonto, Ponto } from "./src/services/pontosService";
+import { buscarPonto, excluirPonto, Ponto } from "./src/services/pontosService";
 
 function Campo({ label, valor }: { label: string; valor: string }) {
   return (
@@ -19,11 +22,37 @@ function Campo({ label, valor }: { label: string; valor: string }) {
   );
 }
 
-export default function TelaDetalhePonto({ route }: any) {
+export default function TelaDetalhePonto({ route, navigation }: any) {
   const id: string | undefined = route?.params?.id;
   const [ponto, setPonto] = useState<Ponto | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
+  const [erroAcao, setErroAcao] = useState("");
+
+  async function executarExclusao() {
+    if (!ponto) {
+      return;
+    }
+    try {
+      await excluirPonto(ponto.id);
+      navigation.goBack();
+    } catch (e) {
+      setErroAcao(mensagemDeErro(e, "Ponto"));
+    }
+  }
+
+  function confirmarExclusao() {
+    if (Platform.OS === "web") {
+      if (window.confirm("Deseja realmente excluir este ponto?")) {
+        executarExclusao();
+      }
+      return;
+    }
+    Alert.alert("Confirmar exclusão", "Deseja realmente excluir este ponto?", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Excluir", style: "destructive", onPress: executarExclusao },
+    ]);
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -86,6 +115,22 @@ export default function TelaDetalhePonto({ route }: any) {
         <Campo label="Endereço" valor={ponto.endereco} />
         <Campo label="Bairro" valor={ponto.bairro} />
         <Campo label="Horário" valor={ponto.horario} />
+
+        <TouchableOpacity
+          style={styles.botaoEditar}
+          onPress={() => navigation.navigate("FormPonto", { ponto })}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.textoBotao}>Editar ponto</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.botaoExcluir}
+          onPress={confirmarExclusao}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.textoBotao}>Excluir ponto</Text>
+        </TouchableOpacity>
+        {erroAcao !== "" && <Text style={styles.erro}>{erroAcao}</Text>}
       </View>
     </ScrollView>
   );
@@ -113,4 +158,21 @@ const styles = StyleSheet.create({
   campo: { marginBottom: 16 },
   label: { fontSize: 14, color: "#888", fontWeight: "bold", textTransform: "uppercase" },
   texto: { fontSize: 16, color: "#444", marginTop: 4 },
+  botaoEditar: {
+    backgroundColor: "#2563EB",
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  botaoExcluir: {
+    backgroundColor: "#C62828",
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  textoBotao: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
 });

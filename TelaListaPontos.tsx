@@ -86,6 +86,13 @@ export default function TelaListaPontos({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.botaoNovo}
+        onPress={() => navigation.navigate("FormPonto")}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.textoBotao}>+ Novo ponto</Text>
+      </TouchableOpacity>
       <TextInput
         style={styles.busca}
         placeholder="Buscar por nome ou bairro..."
@@ -143,6 +150,15 @@ export default function TelaListaPontos({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F4F6F8" },
+  botaoNovo: {
+    backgroundColor: "#2563EB",
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
   busca: {
     minHeight: 48,
     backgroundColor: "#FFFFFF",
