@@ -1,439 +1,209 @@
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { Doacao, listarDoacoes } from "./doacoesStorage";
+import { mensagemDeErro } from "./src/services/api";
+import { Doacao, listarPagina } from "./src/services/doacoesService";
 
-export interface ItemDoacaoProps {
-  doacao: Doacao;
-  onPress?: () => void;
-}
-
-export const ItemDoacao = React.memo(function ItemDoacao({
+const ItemDoacao = React.memo(function ItemDoacao({
   doacao,
   onPress,
-}: ItemDoacaoProps) {
-  const dataFormatada = doacao.criadoEm
+}: {
+  doacao: Doacao;
+  onPress: () => void;
+}) {
+  const data = doacao.criadoEm
     ? new Date(doacao.criadoEm).toLocaleString("pt-BR")
     : "Data não informada";
-
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <Text style={styles.cardTitulo}>{doacao.tipoItem || "Doação"}</Text>
-      <View style={styles.infoRow}>
-        <Text style={styles.cardLabel}>Quantidade: </Text>
-        <Text style={styles.cardValor}>{doacao.quantidade ?? "-"}</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.cardLabel}>Destino: </Text>
-        <Text style={styles.cardValor}>
-          {doacao.pontoDestino || "Não especificado"}
-        </Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Text style={styles.cardLabel}>Data: </Text>
-        <Text style={styles.cardValor}>{dataFormatada}</Text>
-      </View>
+      <Text style={styles.cardTitulo}>{doacao.tipoItem}</Text>
+      <Text style={styles.cardLinha}>Quantidade: {doacao.quantidade}</Text>
+      <Text style={styles.cardLinha}>Destino: {doacao.pontoDestino}</Text>
+      <Text style={styles.cardLinha}>Data: {data}</Text>
     </TouchableOpacity>
   );
 });
 
-export default function TelaMinhasDoacoes({ route, navigation }: any) {
+export default function TelaMinhasDoacoes({ navigation }: any) {
   const [doacoes, setDoacoes] = useState<Doacao[]>([]);
-  const [carregando, setCarregando] = useState(true);
   const [filtro, setFiltro] = useState("");
+  const [filtroAplicado, setFiltroAplicado] = useState("");
+  const [proximaPagina, setProximaPagina] = useState(0);
+  const [ultimaPagina, setUltimaPagina] = useState(false);
+  const [carregando, setCarregando] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const [erro, setErro] = useState("");
 
-  const carregarHistorico = useCallback(async () => {
-    try {
-      setCarregando(true);
-      const lista = await listarDoacoes();
-      setDoacoes(lista);
-    } catch (error) {
-      console.error("Erro ao carregar histórico de doações:", error);
-    } finally {
-      setCarregando(false);
-    }
-  }, []);
+  const emAndamento = useRef(false);
+  const requisicao = useRef(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      carregarHistorico();
-    }, [carregarHistorico]),
+  const carregarPagina = useCallback(
+    async (termo: string, pagina: number, reiniciar: boolean) => {
+      if (emAndamento.current && !reiniciar) {
+        return;
+      }
+      emAndamento.current = true;
+      const id = ++requisicao.current;
+      if (reiniciar) {
+        setCarregando(true);
+      } else {
+        setCarregandoMais(true);
+      }
+      try {
+        const resposta = await listarPagina(termo, pagina);
+        if (id !== requisicao.current) {
+          return;
+        }
+        setDoacoes((atuais) =>
+          reiniciar ? resposta.content : [...atuais, ...resposta.content],
+        );
+        setProximaPagina(pagina + 1);
+        setUltimaPagina(pagina + 1 >= resposta.page.totalPages);
+        setErro("");
+      } catch (e) {
+        if (id === requisicao.current) {
+          setErro(mensagemDeErro(e, "Doação"));
+        }
+      } finally {
+        if (id === requisicao.current) {
+          emAndamento.current = false;
+          setCarregando(false);
+          setCarregandoMais(false);
+        }
+      }
+    },
+    [],
   );
 
   useEffect(() => {
-    if (route?.params?.timestamp) {
-      carregarHistorico();
+    const t = setTimeout(() => setFiltroAplicado(filtro.trim()), 400);
+    return () => clearTimeout(t);
+  }, [filtro]);
+
+  // Reloads on focus so a new donation shows at the top when coming back.
+  useFocusEffect(
+    useCallback(() => {
+      setUltimaPagina(false);
+      carregarPagina(filtroAplicado, 0, true);
+    }, [filtroAplicado, carregarPagina]),
+  );
+
+  function carregarMais() {
+    if (ultimaPagina || emAndamento.current || erro) {
+      return;
     }
-  }, [route?.params?.timestamp, carregarHistorico]);
-
-  const doacoesFiltradas = useMemo(() => {
-    if (!filtro.trim()) {
-      return doacoes;
-    }
-    const termo = filtro.trim().toLowerCase();
-    return doacoes.filter((d) =>
-      (d.tipoItem || "").toLowerCase().includes(termo),
-    );
-  }, [doacoes, filtro]);
-
-  const resumoPorTipo = useMemo(() => {
-    if (!doacoes || doacoes.length === 0) {
-      return { totalGeralDoacoes: 0, itens: [] };
-    }
-
-    const mapa = new Map<
-      string,
-      { tipoOriginal: string; totalQuantidade: number; totalDoacoes: number }
-    >();
-
-    for (const d of doacoes) {
-      const tipo = d.tipoItem?.trim() || "Outro";
-      const chave = tipo.toLowerCase();
-      const qtd = Number(d.quantidade) || 0;
-
-      const atual = mapa.get(chave);
-      if (atual) {
-        atual.totalQuantidade += qtd;
-        atual.totalDoacoes += 1;
-      } else {
-        mapa.set(chave, {
-          tipoOriginal: tipo,
-          totalQuantidade: qtd,
-          totalDoacoes: 1,
-        });
-      }
-    }
-
-    const itens = Array.from(mapa.values()).sort(
-      (a, b) => b.totalQuantidade - a.totalQuantidade,
-    );
-
-    return {
-      totalGeralDoacoes: doacoes.length,
-      itens,
-    };
-  }, [doacoes]);
+    carregarPagina(filtroAplicado, proximaPagina, false);
+  }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.searchWrapper}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por tipo de item..."
-          placeholderTextColor="#9CA3AF"
-          value={filtro}
-          onChangeText={setFiltro}
-          clearButtonMode="while-editing"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {filtro.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={() => setFiltro("")}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.clearButtonText}>✕</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.botaoNova}
+        onPress={() => navigation.navigate("FormDoacao")}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.textoBotao}>+ Nova doação</Text>
+      </TouchableOpacity>
+      <TextInput
+        style={styles.busca}
+        placeholder="Buscar por tipo de item..."
+        placeholderTextColor="#9CA3AF"
+        value={filtro}
+        onChangeText={setFiltro}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
 
       {carregando ? (
-        <View style={styles.loadingContainer}>
+        <View style={styles.centro}>
           <ActivityIndicator size="large" color="#2563EB" />
+        </View>
+      ) : erro && doacoes.length === 0 ? (
+        <View style={styles.centro}>
+          <Text style={styles.erro}>{erro}</Text>
+          <TouchableOpacity
+            style={styles.botaoNova}
+            onPress={() => carregarPagina(filtroAplicado, 0, true)}
+          >
+            <Text style={styles.textoBotao}>Tentar novamente</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
-          data={doacoesFiltradas}
-          keyExtractor={(item) => String(item.id)}
-          ListHeaderComponent={
-            <View style={styles.resumoCard}>
-              <View style={styles.resumoHeader}>
-                <Text style={styles.resumoTitulo}>Resumo por Tipo</Text>
-                <Text style={styles.resumoSubtitulo}>
-                  {resumoPorTipo.totalGeralDoacoes === 1
-                    ? "1 doação"
-                    : `${resumoPorTipo.totalGeralDoacoes} doações`}
-                </Text>
-              </View>
-              {resumoPorTipo.itens.length === 0 ? (
-                <Text style={styles.resumoVazio}>
-                  Nenhuma doação para contabilizar.
-                </Text>
-              ) : (
-                <View style={styles.resumoLista}>
-                  {resumoPorTipo.itens.map((item) => (
-                    <View key={item.tipoOriginal} style={styles.resumoItem}>
-                      <Text style={styles.resumoTipo}>
-                        {item.tipoOriginal}:
-                      </Text>
-                      <Text style={styles.resumoValor}>
-                        {`${item.totalQuantidade} ${
-                          item.totalQuantidade === 1 ? "unidade" : "unidades"
-                        } em ${item.totalDoacoes} ${
-                          item.totalDoacoes === 1 ? "doação" : "doações"
-                        }`}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
+          data={doacoes}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.lista}
+          onEndReached={carregarMais}
+          onEndReachedThreshold={0.4}
+          ListEmptyComponent={
+            <Text style={styles.vazio}>
+              {filtroAplicado
+                ? `Nenhuma doação encontrada para "${filtroAplicado}".`
+                : "Nenhuma doação registrada ainda."}
+            </Text>
+          }
+          ListFooterComponent={
+            carregandoMais ? <ActivityIndicator color="#2563EB" /> : null
           }
           renderItem={({ item }) => (
             <ItemDoacao
               doacao={item}
               onPress={() =>
-                navigation.navigate("DetalheDoacao", { doacao: item })
+                navigation.navigate("DetalheDoacao", { id: item.id })
               }
             />
           )}
-          contentContainerStyle={[
-            styles.listContent,
-            doacoesFiltradas.length === 0 && styles.listContentEmpty,
-          ]}
-          keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            filtro.trim() !== "" ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTitle}>
-                  Nenhum resultado encontrado
-                </Text>
-                <Text style={styles.emptySubtitle}>
-                  Nenhuma doação encontrada para &quot;{filtro.trim()}&quot;.
-                </Text>
-                <TouchableOpacity
-                  style={styles.clearFilterButton}
-                  onPress={() => setFiltro("")}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.clearFilterButtonText}>Limpar busca</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTitle}>Nenhuma doação registrada</Text>
-                <Text style={styles.emptySubtitle}>
-                  Você ainda não possui histórico de doações salvas no aparelho.
-                </Text>
-                <TouchableOpacity
-                  style={styles.emptyButton}
-                  onPress={() => navigation.navigate("Lista")}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.emptyButtonText}>Registrar Doação</Text>
-                </TouchableOpacity>
-              </View>
-            )
-          }
         />
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F4F6F8",
-  },
-  searchWrapper: {
-    flexDirection: "row",
+  container: { flex: 1, backgroundColor: "#F4F6F8" },
+  botaoNova: {
+    backgroundColor: "#2563EB",
+    minHeight: 48,
+    borderRadius: 8,
+    justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  textoBotao: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
+  busca: {
+    minHeight: 48,
+    backgroundColor: "#FFFFFF",
+    margin: 16,
+    marginBottom: 0,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     paddingHorizontal: 12,
-  },
-  searchInput: {
-    flex: 1,
-    minHeight: 48,
     fontSize: 15,
     color: "#1F2937",
-    paddingVertical: 8,
   },
-  clearButton: {
-    padding: 8,
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  clearButtonText: {
-    fontSize: 16,
-    color: "#9CA3AF",
-    fontWeight: "bold",
-  },
-  clearFilterButton: {
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1,
-    borderColor: "#C7D2FE",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  clearFilterButtonText: {
-    color: "#3730A3",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  listContentEmpty: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  resumoCard: {
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  resumoHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-    paddingBottom: 8,
-    marginBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-  },
-  resumoTitulo: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1F2937",
-  },
-  resumoSubtitulo: {
-    fontSize: 13,
-    color: "#6B7280",
-    fontWeight: "500",
-  },
-  resumoVazio: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    fontStyle: "italic",
-    textAlign: "center",
-    paddingVertical: 8,
-  },
-  resumoLista: {
-    marginTop: 4,
-  },
-  resumoItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  resumoTipo: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    flex: 1,
-    marginRight: 8,
-  },
-  resumoValor: {
-    fontSize: 14,
-    color: "#4B5563",
-  },
+  centro: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+  erro: { color: "#C62828", fontSize: 15, textAlign: "center", marginBottom: 12 },
+  lista: { padding: 16, paddingBottom: 48 },
+  vazio: { textAlign: "center", color: "#6B7280", marginTop: 32 },
   card: {
     backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  cardTitulo: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
     marginBottom: 8,
   },
-  infoRow: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  cardLabel: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "600",
-  },
-  cardValor: {
-    fontSize: 14,
-    color: "#1F2937",
-    flexShrink: 1,
-  },
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  emptyButton: {
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 44,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emptyButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    fontSize: 15,
-  },
+  cardTitulo: { fontSize: 17, fontWeight: "bold", color: "#1F2937", marginBottom: 4 },
+  cardLinha: { fontSize: 14, color: "#4B5563", marginTop: 2 },
 });

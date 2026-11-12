@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Platform, Text, TouchableOpacity } from "react-native";
 import TelaDetalheDoacao from "./TelaDetalheDoacao";
 import TelaDetalhePonto from "./TelaDetalhePonto";
+import TelaFormDoacao from "./TelaFormDoacao";
 import TelaFormPonto from "./TelaFormPonto";
 import TelaListaPontos from "./TelaListaPontos";
 import TelaMinhasDoacoes from "./TelaMinhasDoacoes";
@@ -53,6 +54,13 @@ export default function App() {
           component={TelaFormPonto}
           options={({ route }: any) => ({
             title: route?.params?.ponto ? "Editar Ponto" : "Novo Ponto",
+          })}
+        />
+        <Stack.Screen
+          name="FormDoacao"
+          component={TelaFormDoacao}
+          options={({ route }: any) => ({
+            title: route?.params?.doacao ? "Editar Doação" : "Nova Doação",
           })}
         />
         <Stack.Screen
