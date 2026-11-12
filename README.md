@@ -1,85 +1,88 @@
-# Instituto MÃ£o Amiga
+# Instituto Mão Amiga
 
-App React Native/Expo que consome uma API Spring Boot (pasta [`api/`](./api), endpoints em [`api/README.md`](./api/README.md)).
+Aplicativo mobile (React Native + Expo) para gerenciar **pontos de coleta/distribuição** e **doações** do Instituto Mão Amiga. Os dados ficam em uma API Spring Boot própria, na pasta [`api/`](./api).
+
+## Funcionalidades
+
+- **Pontos:** listar com busca (nome ou bairro) e rolagem infinita, ver detalhe, cadastrar, editar e excluir.
+- **Favoritos:** marcar pontos com ♡/♥ (salvos no aparelho) e ver a tela "Meus pontos".
+- **Doações:** registrar escolhendo o ponto de destino, histórico com filtro por tipo e rolagem infinita, detalhe, edição e exclusão.
+- **Tratamento de erros:** carregando, vazio, API desligada (400/404 com mensagem clara).
+
+## Tecnologias
+
+| Camada | Stack |
+|---|---|
+| App | Expo, React Native, TypeScript, React Navigation, AsyncStorage |
+| API | Java 17+, Spring Boot 3.5, Spring Data JPA, H2 (arquivo), Bean Validation, springdoc (Swagger) |
+
+## Estrutura
+
+```
+.
+├── App.tsx                  # navegação
+├── Tela*.tsx                # telas (lista, detalhe, formulários, doações, favoritos)
+├── src/services/
+│   ├── api.ts               # único lugar com fetch + URL da API
+│   ├── pontosService.ts     # chamadas de pontos
+│   ├── doacoesService.ts    # chamadas de doações
+│   └── favoritosStorage.ts  # favoritos (ids) no AsyncStorage
+└── api/                     # API Spring Boot (ver api/README.md)
+```
 
 ## Como rodar
 
-**API** (Java 17+; testada no JDK 25, Maven 3.9):
+### 1. API
+
+Requisitos: Java 17+ (testada no JDK 25) e Maven 3.9.
 
 ```bash
 cd api
 mvn spring-boot:run
 ```
 
-Swagger: http://localhost:8080/swagger-ui.html
+- API: http://localhost:8080
+- Swagger: http://localhost:8080/swagger-ui.html
+- Os dados ficam em `api/data/` (H2 em arquivo) e o seed de pontos roda só na primeira execução.
 
-**App:**
+### 2. App
+
+Requisitos: Node.js e npm.
 
 ```bash
 npm install
 npx expo start
 ```
 
-**Onde trocar o IP:** a URL da API vem da variÃ¡vel `EXPO_PUBLIC_API_URL` (arquivo `.env`, ex.: `EXPO_PUBLIC_API_URL=http://192.168.0.10:8080`). Sem ela, usa `http://localhost:8080` (serve para o navegador). No celular use o IP do computador na rede local.
+### 3. Configurar o IP da API
 
-## Roteiro de demonstraÃ§Ã£o (atÃ© 3 minutos)
+A URL vem da variável `EXPO_PUBLIC_API_URL` no arquivo `.env`:
 
-1. **Pontos (0:00â€“1:00):** buscar por bairro; "+ Novo ponto" (cadastrar); abrir o ponto e "Editar ponto"; "Excluir ponto" (confirmaÃ§Ã£o Cancelar/Excluir).
-2. **Favoritos (1:00â€“1:20):** tocar no â™¡ de um ponto; abrir "â™¥ Meus pontos"; desmarcar.
-3. **DoaÃ§Ãµes (1:20â€“2:20):** "Minhas doaÃ§Ãµes" â†’ "+ Nova doaÃ§Ã£o" escolhendo o ponto; ver no topo; filtrar por tipo; abrir, "Editar doaÃ§Ã£o", "Excluir doaÃ§Ã£o".
-4. **Erros da API (2:20â€“2:45):** no Swagger mostrar um 400 (campo vazio / quantidade 0) e um 404 (id inexistente); desligar a API e mostrar a mensagem no app.
-5. **DecisÃ£o tÃ©cnica (2:45â€“3:00):** favoritos ficam no aparelho (AsyncStorage, sÃ³ os ids) porque sÃ£o preferÃªncia pessoal e nÃ£o precisam de servidor; pontos e doaÃ§Ãµes ficam no servidor para serem compartilhados e validados em um sÃ³ lugar.
-
-Camadas de rede: sÃ³ `src/services/api.ts` chama `fetch`; `pontosService.ts` e `doacoesService.ts` montam as URLs; as telas sÃ³ chamam os services.
----
-# Welcome to your Expo app 👋
-
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
-
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```env
+EXPO_PUBLIC_API_URL=http://192.168.0.10:8080
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- No **navegador** pode usar o padrão (`http://localhost:8080`).
+- No **celular** use o IP do computador na rede local (não `localhost`). Celular e computador devem estar na mesma rede.
+- Reinicie o `expo start` depois de alterar o `.env`.
 
-## Learn more
+## Endpoints da API
 
-To learn more about developing your project with Expo, look at the following resources:
+Resumo (detalhes em [`api/README.md`](./api/README.md)):
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+| Recurso | Rotas |
+|---|---|
+| Pontos | `GET/POST /api/v1/pontos`, `GET/PUT/DELETE /api/v1/pontos/{id}`, `GET /api/v1/pontos/filtro?filtro=&page=&size=` |
+| Doações | `POST /api/v1/doacoes`, `GET/PUT/DELETE /api/v1/doacoes/{id}`, `GET /api/v1/doacoes/filtro?filtro=&page=&size=` |
 
-## Join the community
+## Roteiro de demonstração (até 3 minutos)
 
-Join our community of developers creating universal apps.
+1. **Pontos (0:00–1:00):** buscar por bairro; "+ Novo ponto"; abrir o ponto e "Editar ponto"; "Excluir ponto" (confirmação Cancelar/Excluir).
+2. **Favoritos (1:00–1:20):** tocar no ♡ de um ponto; abrir "♥ Meus pontos"; desmarcar.
+3. **Doações (1:20–2:20):** "Minhas doações" → "+ Nova doação" escolhendo o ponto; ver no topo do histórico; filtrar por tipo; abrir, "Editar doação" e "Excluir doação".
+4. **Erros (2:20–2:45):** no Swagger mostrar um 400 (campo vazio ou quantidade 0) e um 404 (id inexistente); desligar a API e mostrar a mensagem no app.
+5. **Decisão técnica (2:45–3:00):** favoritos ficam no aparelho (só os ids, em AsyncStorage) por serem preferência pessoal; pontos e doações ficam no servidor para serem compartilhados e validados em um só lugar.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Fluxo de trabalho
 
+Issues `[N2-1]` a `[N2-8]`, uma branch por camada (`feature/api-n2`, `feature/app-n2`), commits no padrão Conventional Commits com `refs #N` e PR para a `main`.
