@@ -16,3 +16,4 @@ public record PontoResponseDTO(
         return new PontoResponseDTO(p.getId(), p.getNome(), p.getEndereco(), p.getBairro(), p.getHorario(), p.getTipo());
     }
 }
+

@@ -10,3 +10,4 @@ public class MaoAmigaApiApplication {
         SpringApplication.run(MaoAmigaApiApplication.class, args);
     }
 }
+

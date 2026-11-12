@@ -9,3 +9,4 @@ public record PontoRequestDTO(
         @NotBlank String horario,
         @NotBlank String tipo) {
 }
+
